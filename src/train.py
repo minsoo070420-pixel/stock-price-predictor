@@ -57,6 +57,7 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import (
+    CLASSIFICATION_THRESHOLD,
     FEATURE_SELECT_TOP_K,
     HYPERPARAM_CV_SPLITS,
     MODELS_DIR,
@@ -164,7 +165,9 @@ def evaluate_regression(name, model, X_train, y_train, X_test, y_test):
 
 def evaluate_classification(name, model, X_train, y_train, X_test, y_test):
     model.fit(X_train, y_train)
-    pred = model.predict(X_test)
+    # Use the shared decision threshold (not sklearn's default 0.5) so what gets
+    # reported/selected here matches exactly what predict.py/backtest_dates.py do.
+    pred = (model.predict_proba(X_test)[:, 1] > CLASSIFICATION_THRESHOLD).astype(int)
     acc = accuracy_score(y_test, pred)
     prec = precision_score(y_test, pred, zero_division=0)
     rec = recall_score(y_test, pred, zero_division=0)

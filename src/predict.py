@@ -8,7 +8,7 @@ import joblib
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import MODELS_DIR, TICKERS
+from config import CLASSIFICATION_THRESHOLD, MODELS_DIR, TICKERS
 from features import build_features, FEATURE_COLUMNS
 from fetch_data import fetch_all, fetch_macro_all
 from macro_features import align_macro_to_ticker, build_macro_features
@@ -35,10 +35,8 @@ def predict_next_day(name: str, symbol: str, df: pd.DataFrame, macro_df: pd.Data
 
     pred_return = float(reg.predict(latest[manifest["regressor"]])[0])
     pred_close = last_close * (1 + pred_return)
-    pred_dir = int(clf.predict(latest[manifest["classifier"]])[0])
-    pred_dir_proba = None
-    if hasattr(clf, "predict_proba"):
-        pred_dir_proba = float(clf.predict_proba(latest[manifest["classifier"]])[0][1])
+    pred_dir_proba = float(clf.predict_proba(latest[manifest["classifier"]])[0][1])
+    pred_dir = int(pred_dir_proba > CLASSIFICATION_THRESHOLD)
 
     # Live news sentiment: shown for context, NOT an input to the trained model
     # (see news_pulse.py for why -- no free source has point-in-time history to train on).

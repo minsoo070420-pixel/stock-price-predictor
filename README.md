@@ -1,5 +1,7 @@
 # Daily Stock Prediction (S&P 500, AAPL, PLTR)
 
+[![GitHub repo](https://img.shields.io/badge/GitHub-stock--price--predictor-181717?logo=github)](https://github.com/minsoo070420-pixel/stock-price-predictor)
+
 Predicts the next trading day's return/direction for the S&P 500 index (`^GSPC`),
 Apple (`AAPL`), and Palantir (`PLTR`) using classic ML on engineered technical
 features. No paid data or API keys required (uses `yfinance`).
@@ -76,6 +78,32 @@ python src/news_pulse.py  # just the live news-sentiment readout, on its own
    classifier for a ticker can end up using different feature sets and different selected columns;
    exactly which columns each saved model expects is recorded in `models/{ticker}_features.json`.
 
+### The classification decision threshold, and why it's 0.51 not 0.50
+
+Backtesting turned up something concrete: SP500's classifier predicted "UP" on
+21 out of 21 days over a real month (8/13-9/11), because its predicted
+probability of "up" never once dropped below 0.50 (it ranged 0.50-0.68) — a
+soft bias from training data where ~56% of days were historically up, not a
+hard-coded rule, but functionally the same result. Sweeping the decision
+threshold showed that ~0.65 would have maximized accuracy *for that specific
+month* (38%→67%) — but that number is fit in hindsight on the very data it's
+being tested against, which is overfitting, not a fix, and would not
+generalize to the next month.
+
+`CLASSIFICATION_THRESHOLD = 0.51` in `config.py` is the honest, defensible
+version: a fixed, modest 1-point shift off 50/50, applied uniformly in
+training/evaluation, live prediction, and backtesting (previously the
+default `.predict()` used 0.50 implicitly and inconsistently against what the
+backtest reported). It's small enough not to be curve-fit to any one test
+window. Measured effect: it flipped only 1 of SP500's 21 calls that month
+(20 UP / 1 DOWN) and left accuracy roughly unchanged (~33-38%, within normal
+noise for n=21) — which itself is an honest finding: the bias is baked in
+deeply enough that a 1-point nudge can't meaningfully counter it. Fixing it
+for real would mean something structural — class-weighting during training, a
+calibrated (e.g. Platt-scaled) probability output, or an explicit check
+during model selection that rejects a classifier whose predicted-probability
+range never crosses 0.5 — not further threshold tweaking.
+
 ## Reading the results honestly
 
 Daily stock returns are close to a random walk — beating a coin flip
@@ -98,9 +126,13 @@ feature selection + tuning + ensembling + world-market features
 
 | Ticker | Regressor RMSE | Classifier accuracy |
 |---|---|---|
-| SP500 | 0.01029 (tuned baseline wins) | **53.9% → 56.1%** (tuned + world features) |
-| AAPL | 0.01936 (tuned baseline wins, ensemble) | 52.6% → 53.0% (tuned + world features) |
-| PLTR | 0.03954 → 0.03943 (tuned + world features, ensemble) | 51.4% → 52.3% (tuning alone; world features didn't help here) |
+| SP500 | 0.01029 (tuned baseline wins) | **53.9% → 54.8%** (tuned + world features, at the 0.51 decision threshold) |
+| AAPL | 0.01936 (tuned baseline wins, ensemble) | 52.3% → 53.5% (tuned + world features) |
+| PLTR | 0.03954 → 0.03943 (tuned + world features, ensemble) | 50.9% → 51.4% (tuning + world features, modest) |
+
+(These are slightly lower than an earlier pass reported, because that pass used the default
+0.50 threshold — see below for why 0.51 replaced it, and why the difference between the two
+is itself informative.)
 
 SP500's classifier is the strongest result across this whole project: **56.1%
 directional accuracy**, up from the original untuned 53.9%. That gain is a mix

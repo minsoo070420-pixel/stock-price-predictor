@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import DATA_DIR, MODELS_DIR, REPORTS_DIR, TICKERS
+from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TICKERS
 from features import build_features, FEATURE_COLUMNS
 from fetch_data import fetch_macro_all
 from macro_features import align_macro_to_ticker, build_macro_features
@@ -73,7 +73,8 @@ def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: in
 
         pred_return = float(reg.predict(x_all[manifest["regressor"]])[0])
         pred_close = prior_close * (1 + pred_return)
-        pred_direction = "UP" if int(clf.predict(x_all[manifest["classifier"]])[0]) == 1 else "DOWN"
+        pred_up_proba = float(clf.predict_proba(x_all[manifest["classifier"]])[0][1])
+        pred_direction = "UP" if pred_up_proba > CLASSIFICATION_THRESHOLD else "DOWN"
 
         rows.append({
             "ticker": name,

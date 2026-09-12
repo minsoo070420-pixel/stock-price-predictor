@@ -39,6 +39,14 @@ MACRO_TICKERS = {
 HYPERPARAM_CV_SPLITS = 3       # TimeSeriesSplit folds used only for tuning, never for the final reported metric
 FEATURE_SELECT_TOP_K = 20      # when a feature set exceeds this, keep only the top-K by importance
 
+# Classifiers were found to sit almost permanently just above the default 0.50
+# cutoff (learning the training data's ~56% up-day base rate rather than a
+# strong daily signal), so they defaulted to predicting UP nearly every day.
+# Requiring the "up" probability to clear 0.51 -- a modest, fixed 1-point
+# margin, not fit to any specific test window -- makes that tie-break a
+# deliberate choice instead of an accident of where the base rate happens to sit.
+CLASSIFICATION_THRESHOLD = 0.51
+
 HISTORY_PERIOD = "10y"   # how much history to download
 INTERVAL = "1d"
 TEST_FRACTION = 0.15     # last 15% of trading days held out as test set, chronologically
