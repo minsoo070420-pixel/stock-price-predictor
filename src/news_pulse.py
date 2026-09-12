@@ -28,12 +28,18 @@ _analyzer = SentimentIntensityAnalyzer()
 MARKET_WIDE_SYMBOLS = ["^GSPC", "^VIX"]
 
 
-def _headlines_for(symbol: str, max_items: int = 10) -> list[str]:
+def _headlines_for(symbol: str, max_items: int = 10) -> tuple[list[str], bool]:
+    """Returns (headlines, fetch_ok). fetch_ok=False means the request itself
+    failed (network/API issue) -- that's technical missingness, unrelated to
+    whether there's actually news. An empty list with fetch_ok=True means the
+    request succeeded and there just isn't any recent coverage, which -- per
+    the "missing is often informative" point -- is itself a signal (a quiet
+    news day), not a gap to silently paper over with a neutral score."""
     import yfinance as yf
     try:
         news = yf.Ticker(symbol).news or []
     except Exception:
-        return []
+        return [], False
     out = []
     for item in news[:max_items]:
         content = item.get("content", item)
@@ -42,13 +48,23 @@ def _headlines_for(symbol: str, max_items: int = 10) -> list[str]:
         text = (title + ". " + summary).strip()
         if text:
             out.append(text)
-    return out
+    return out, True
 
 
 def sentiment_for_symbol(symbol: str) -> dict:
-    headlines = _headlines_for(symbol)
+    headlines, fetch_ok = _headlines_for(symbol)
+    if not fetch_ok:
+        return {
+            "symbol": symbol, "n_headlines": 0, "avg_compound": None,
+            "had_news": None, "label": "unavailable (fetch failed)",
+        }
     if not headlines:
-        return {"symbol": symbol, "n_headlines": 0, "avg_compound": None, "label": "no recent news"}
+        # Explicitly "no news" -- distinct from "couldn't check" above, and
+        # distinct from a neutral-but-mixed news day below.
+        return {
+            "symbol": symbol, "n_headlines": 0, "avg_compound": None,
+            "had_news": False, "label": "no recent news",
+        }
     scores = [_analyzer.polarity_scores(h)["compound"] for h in headlines]
     avg = sum(scores) / len(scores)
     if avg > 0.15:
@@ -57,7 +73,7 @@ def sentiment_for_symbol(symbol: str) -> dict:
         label = "negative"
     else:
         label = "neutral"
-    return {"symbol": symbol, "n_headlines": len(headlines), "avg_compound": avg, "label": label}
+    return {"symbol": symbol, "n_headlines": len(headlines), "avg_compound": avg, "had_news": True, "label": label}
 
 
 def market_pulse() -> pd.DataFrame:

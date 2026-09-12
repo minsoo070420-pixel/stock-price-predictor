@@ -47,6 +47,18 @@ FEATURE_SELECT_TOP_K = 20      # when a feature set exceeds this, keep only the 
 # deliberate choice instead of an accident of where the base rate happens to sit.
 CLASSIFICATION_THRESHOLD = 0.51
 
+# Rough round-trip transaction cost assumptions (spread + slippage, in basis
+# points), used only to sanity-check whether backtested directional calls
+# would survive real trading frictions -- deliberately conservative-but-plausible
+# estimates for a retail-sized order in a liquid instrument, not a researched
+# figure for any specific broker/venue. SP500 assumes trading via a liquid ETF
+# (e.g. SPY) rather than the index itself, which isn't directly tradable.
+TRANSACTION_COST_BPS = {
+    "SP500": 2,
+    "AAPL": 3,
+    "PLTR": 8,
+}
+
 HISTORY_PERIOD = "10y"   # how much history to download
 INTERVAL = "1d"
 TEST_FRACTION = 0.15     # last 15% of trading days held out as test set, chronologically

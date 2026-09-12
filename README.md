@@ -29,9 +29,11 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python src/train.py       # fetches data, engineers features, tunes + evaluates models, saves the best ones
-python src/predict.py     # loads saved models, prints tomorrow's prediction + live news sentiment for each ticker
-python src/news_pulse.py  # just the live news-sentiment readout, on its own
+python src/train.py           # fetches data, engineers features, tunes + evaluates models, saves the best ones
+python src/predict.py         # loads saved models, prints tomorrow's prediction + live news sentiment for each ticker
+python src/news_pulse.py      # just the live news-sentiment readout, on its own
+python src/backtest_dates.py  # walk-forward accuracy check + transaction-cost reality check over recent days
+python src/leakage_check.py   # verifies no feature depends on future data (see the checklist below)
 ```
 
 `train.py` re-downloads fresh history every run, so re-run it periodically
@@ -59,6 +61,10 @@ python src/news_pulse.py  # just the live news-sentiment readout, on its own
 5. **`src/predict.py`** — recomputes features on the latest available day and prints tomorrow's
    predicted return, direction, reconstructed price, and a live news-sentiment readout for context.
 6. **`src/news_pulse.py`** — live news-sentiment snapshot (see "World-events layer" below).
+7. **`src/baselines.py`** — finance-specific dumb baselines (momentum persistence), eligible to
+   actually win model selection, not just serve as a floor (see the checklist below — this matters).
+8. **`src/leakage_check.py`** — rebuilds every feature from truncated history and verifies it's
+   identical to the production version, to actually verify (not assume) there's no look-ahead.
 
 ## Optimization pipeline (per ticker, per task, per feature set)
 
@@ -98,21 +104,106 @@ backtest reported). It's small enough not to be curve-fit to any one test
 window. Measured effect: it flipped only 1 of SP500's 21 calls that month
 (20 UP / 1 DOWN) and left accuracy roughly unchanged (~33-38%, within normal
 noise for n=21) — which itself is an honest finding: the bias is baked in
-deeply enough that a 1-point nudge can't meaningfully counter it. Fixing it
-for real would mean something structural — class-weighting during training, a
-calibrated (e.g. Platt-scaled) probability output, or an explicit check
-during model selection that rejects a classifier whose predicted-probability
-range never crosses 0.5 — not further threshold tweaking.
+deeply enough that a 1-point nudge can't meaningfully counter it. The
+structural fix that actually worked is below.
+
+### The structural fix: class-weighted training + balanced-accuracy selection
+
+A threshold nudge patches the symptom at inference time. The actual cause was
+upstream, in training and model selection:
+
+- **Training**: `RandomForestClassifier`, `HistGradientBoostingClassifier`,
+  and `LogisticRegression` now all use `class_weight="balanced"`, so getting a
+  DOWN day wrong costs the model exactly as much as getting an UP day wrong,
+  instead of the training data's ~56% historical up-rate making "lean UP" the
+  path of least loss.
+- **Selection**: `RandomizedSearchCV` and the final baseline-vs-enhanced /
+  model-vs-model comparisons now score classifiers on **balanced accuracy**
+  (mean of per-class recall) instead of raw accuracy. Raw accuracy is exactly
+  the metric a model that only ever predicts the majority class can win for
+  free — balanced accuracy scores that same model at precisely 50%, matching
+  the majority-class baseline instead of beating it.
+
+**Measured effect — the bias is genuinely gone**: over the same real month
+that motivated this fix, predicted calls went from SP500 21/21 UP to a
+realistic 17 DOWN / 13 UP, and AAPL from 29/30 UP to an even 15/15 split.
+`reports/model_comparison.csv` also now carries a `pct_predicted_up` column
+per candidate specifically so a collapse like this is visible again
+immediately, without needing to re-derive it from a backtest by hand.
+
+**The honest cost of removing the exploit**: held-out balanced accuracy for
+all three tickers dropped to 49.6-52.3% — indistinguishable from a coin flip.
+The previous ~54-56% figures were, in part, the model getting rewarded for
+leaning on the base rate rather than reading real daily signal; once that
+shortcut was closed off, what's left is close to the honest ceiling this
+category of data actually supports. That's not a regression from this
+change — it's this change correcting an inflated number from before it.
+
+## Six-point ML-hygiene checklist, applied and verified
+
+A standard list of things that quietly wreck financial ML pipelines, checked
+against this one — not just asserted, actually tested where that's possible:
+
+1. **Leakage is the #1 silent killer.** Verified, not assumed: `src/leakage_check.py`
+   rebuilds every feature (own + macro) from data truncated at several cutoff
+   dates and confirms each cutoff's last row is bit-for-bit identical to that
+   date's row computed from the full history. If truncating the future ever
+   changed a past feature value, that would be leakage. Run: `python src/leakage_check.py`
+   — currently passes for all three tickers, both feature families.
+2. **Never shuffle time series data.** Already true throughout: `TimeSeriesSplit`
+   for hyperparameter CV, a strictly chronological split for the final held-out
+   test, nowhere a shuffled k-fold. Verified by grepping for `shift(-` (only the
+   target uses it) and confirming no `KFold`/`shuffle` anywhere in the codebase.
+3. **Predict returns, not price levels.** Already true from the start of this
+   project (see "What it actually predicts" above) — targets are `pct_change`,
+   never raw price.
+4. **Always compare against a dumb baseline — and this one bit us.** Added a
+   `baseline_persistence` candidate (`src/baselines.py`: "tomorrow repeats
+   today's direction/return") alongside the existing zero-return/majority-class
+   floors. It was initially *excluded* from ever winning the model-selection
+   step, same as the other baselines — until checking revealed it actually
+   **beats every tuned/ensembled model's balanced accuracy, for all three
+   tickers**. That's now fixed structurally: `run_task` in `train.py` only
+   excludes the true know-nothing floors (zero-return, majority-class) from
+   winning; a real strategy like persistence is left eligible, and now wins
+   the classifier slot for SP500, AAPL, *and* PLTR. Concretely: no amount of
+   feature engineering, tuning, or ensembling in this pipeline beats "assume
+   today's direction continues." The regressors still handily beat persistence
+   on RMSE (predicting an exact return via naive continuation is much worse
+   than via a fitted model), so that slot is unaffected.
+5. **A good backtest score ≠ a profitable strategy.** Operationalized instead
+   of just asserted: `backtest_dates.py` now simulates actually trading each
+   call (long on UP, short on DOWN) against a rough round-trip transaction-cost
+   assumption per ticker (`TRANSACTION_COST_BPS` in `config.py` — 2bps SP500,
+   3bps AAPL, 8bps PLTR; not researched for any specific broker, just
+   plausible for a liquid retail-sized order) and reports gross vs. net bps
+   per trade. Result on the last 30 trading days: AAPL's already-thin edge
+   flips negative after costs (+1.8 → **-1.2 bps/trade**); SP500 and PLTR stay
+   net positive, but PLTR's number is dominated by one outsized single-day
+   move inside the window (a +29% day), so a 30-day average there is not a
+   reliable estimate — exactly the kind of fat-tail sensitivity that makes
+   "backtest looked profitable" a weak claim on its own.
+6. **Missing values in event data are often informative, not random.**
+   `news_pulse.py` already avoided imputing a neutral score for "no news";
+   tightened further to distinguish three states explicitly: `had_news=True`
+   (scored), `had_news=False` (genuinely no recent coverage — itself a
+   signal, a quiet news day), and `had_news=None` (the fetch failed —
+   technical missingness, unrelated to whether news exists, and conflating it
+   with "no news" would have been its own quiet bug).
 
 ## Reading the results honestly
 
 Daily stock returns are close to a random walk — beating a coin flip
 consistently is genuinely hard, and these results reflect that:
 
-- Directional accuracy sits around 50-54%, only modestly above the ~50% baseline.
+- Directional accuracy sits around 50-58%, only modestly above the ~50% baseline
+  — and for all three tickers, the classifier that actually wins is
+  `baseline_persistence` (see the checklist above), not a tuned model.
 - RMSE is close to (sometimes worse than) the "predict zero return" baseline.
-- None of this is investment advice, and nothing here accounts for transaction
-  costs, slippage, or overfitting risk from repeated model comparisons.
+- None of this is investment advice; `backtest_dates.py`'s cost-adjusted reality
+  check shows the edge (such as it is) doesn't clearly survive transaction costs
+  for at least one ticker, and says nothing about slippage, capacity, or the
+  fact that other people are running similar models on the same public data.
 
 Treat this as a demonstration of a correct, leakage-free ML pipeline for
 financial time series, not a working trading signal. Ideas for improvement
@@ -120,34 +211,32 @@ are in the "Extending this" section below.
 
 ### Did the optimization actually help?
 
-Yes, modestly and unevenly — the honest result, ticker by ticker, after
-feature selection + tuning + ensembling + world-market features
-(full numbers in `reports/model_comparison.csv`):
+For the regressors: modestly. Feature selection, tuning, and ensembling
+bought a small RMSE improvement in some tickers (PLTR: 0.03964→0.03943) and
+made no meaningful difference in others — daily returns remain close to a
+random walk regardless of how much tuning you throw at it. No regressor
+anywhere beat roughly a 2% RMSE improvement over the untuned starting point.
 
-| Ticker | Regressor RMSE | Classifier accuracy |
-|---|---|---|
-| SP500 | 0.01029 (tuned baseline wins) | **53.9% → 54.8%** (tuned + world features, at the 0.51 decision threshold) |
-| AAPL | 0.01936 (tuned baseline wins, ensemble) | 52.3% → 53.5% (tuned + world features) |
-| PLTR | 0.03954 → 0.03943 (tuned + world features, ensemble) | 50.9% → 51.4% (tuning + world features, modest) |
+For the classifiers: this is where the story is more interesting, and more
+honest than it first looked, in two stages. An earlier pass (tuning +
+world-market features, scored on *raw* accuracy) reported SP500 at 56.1% —
+the best number in this whole project. But raw accuracy rewards a model for
+leaning on the training data's ~56% historical up-day rate, and backtesting
+caught it doing exactly that (predicting UP on 21 of 21 real days in a row).
+Fixing that at the source — `class_weight="balanced"` plus scoring on
+*balanced* accuracy — dropped the honest number to 49.6-52.3%. Then, adding
+the persistence baseline as an eligible competitor (checklist item #4 above)
+revealed the real punchline: that simple "tomorrow repeats today" rule beats
+every tuned/ensembled candidate outright, for all three tickers (SP500 52.2%,
+AAPL 50.8%, PLTR 57.9% balanced accuracy) — so it's now what's actually
+deployed. All the feature engineering, hyperparameter tuning, and ensembling
+in this project's classifiers, combined, do not beat one line of momentum
+logic. That's the most useful single finding in this whole README.
 
-(These are slightly lower than an earlier pass reported, because that pass used the default
-0.50 threshold — see below for why 0.51 replaced it, and why the difference between the two
-is itself informative.)
-
-SP500's classifier is the strongest result across this whole project: **56.1%
-directional accuracy**, up from the original untuned 53.9%. That gain is a mix
-of tuning (better-regularized trees generalize better than the original fixed
-hyperparameters) and the world-market features actually contributing —
-feature importances confirm Treasury yield, VIX, credit stress, and the
-overseas-index returns get real weight there.
-
-It's still not uniform: PLTR's classifier improved from tuning but *not* from
-the world features (shortest price history of the three, so more features
-means more overfitting risk), and no regressor beat ~2% RMSE improvement
-anywhere — daily returns remain close to a random walk regardless of how much
-tuning you throw at it. `train.py` evaluates every combination on the same
+`train.py` still evaluates every feature-set/model combination on the same
 held-out window and keeps whichever wins per ticker per task, so it never
-defaults to the fancier setup just because it's newer.
+defaults to the fancier setup just because it's newer — that part of the
+methodology didn't change, only the metric being optimized for did.
 
 ## World-events layer: what's actually feasible without a paid data source
 

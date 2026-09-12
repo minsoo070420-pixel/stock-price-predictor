@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TICKERS
+from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TICKERS, TRANSACTION_COST_BPS
 from features import build_features, FEATURE_COLUMNS
 from fetch_data import fetch_macro_all
 from macro_features import align_macro_to_ticker, build_macro_features
@@ -76,6 +76,14 @@ def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: in
         pred_up_proba = float(clf.predict_proba(x_all[manifest["classifier"]])[0][1])
         pred_direction = "UP" if pred_up_proba > CLASSIFICATION_THRESHOLD else "DOWN"
 
+        # Reality check (point: a good backtest score != a profitable strategy):
+        # simulate actually trading the classifier's call -- long if it said UP,
+        # short if DOWN -- and net out an assumed round-trip transaction cost.
+        position = 1 if pred_direction == "UP" else -1
+        gross_return_bps = position * actual_return * 10_000
+        cost_bps = TRANSACTION_COST_BPS.get(name, 5)
+        net_return_bps = gross_return_bps - cost_bps
+
         rows.append({
             "ticker": name,
             "date": target_date,
@@ -87,6 +95,9 @@ def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: in
             "predicted_direction": pred_direction,
             "actual_direction": actual_direction,
             "direction_correct": pred_direction == actual_direction,
+            "gross_return_bps": gross_return_bps,
+            "assumed_cost_bps": cost_bps,
+            "net_return_bps": net_return_bps,
         })
     return pd.DataFrame(rows)
 
@@ -141,6 +152,18 @@ def main():
         mape = g["price_error_pct"].abs().mean()
         print(f"  {name:<6}: directional accuracy {acc:.1%} ({int(g['direction_correct'].sum())}/{len(g)}), "
               f"mean abs price error {mape:.2f}%")
+
+    print("\n--- Reality check: would trading these calls have made money after costs? ---")
+    print("(long when the model said UP, short when it said DOWN; a rough, not brokerage-specific, cost assumption)")
+    for name, g in scored.groupby("ticker"):
+        gross = g["gross_return_bps"].mean()
+        net = g["net_return_bps"].mean()
+        cost = TRANSACTION_COST_BPS.get(name, 5)
+        pct_profitable = (g["net_return_bps"] > 0).mean()
+        cum_net_pct = g["net_return_bps"].sum() / 100  # bps -> % (simple sum, not compounded)
+        print(f"  {name:<6}: avg {gross:+.1f} bps/trade gross, {cost} bps assumed round-trip cost -> "
+              f"{net:+.1f} bps/trade net  |  {pct_profitable:.0%} of days net-profitable  |  "
+              f"cumulative over window: {cum_net_pct:+.2f}%")
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / "backtest_recent.csv"

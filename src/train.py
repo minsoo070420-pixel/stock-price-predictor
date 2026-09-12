@@ -45,6 +45,7 @@ from sklearn.ensemble import (
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import (
     accuracy_score,
+    balanced_accuracy_score,
     f1_score,
     mean_absolute_error,
     mean_squared_error,
@@ -66,6 +67,7 @@ from config import (
     TEST_FRACTION,
     TICKERS,
 )
+from baselines import PersistenceClassifier, PersistenceRegressor
 from features import FEATURE_COLUMNS, OWN_FEATURE_COLUMNS, make_dataset
 from fetch_data import fetch_all, fetch_macro_all
 from macro_features import build_macro_features
@@ -110,10 +112,10 @@ def select_top_features(X_train, y_train, task: str, top_k=FEATURE_SELECT_TOP_K)
     return list(importances.sort_values(ascending=False).head(top_k).index)
 
 
-def tune_model(estimator_cls, param_dist, X_train, y_train, task: str):
-    scoring = "neg_root_mean_squared_error" if task == "regression" else "accuracy"
+def tune_model(estimator_cls, param_dist, X_train, y_train, task: str, extra_params: dict | None = None):
+    scoring = "neg_root_mean_squared_error" if task == "regression" else "balanced_accuracy"
     search = RandomizedSearchCV(
-        estimator_cls(random_state=RANDOM_STATE),
+        estimator_cls(random_state=RANDOM_STATE, **(extra_params or {})),
         param_distributions=param_dist,
         n_iter=N_SEARCH_ITER,
         cv=TimeSeriesSplit(n_splits=HYPERPARAM_CV_SPLITS),
@@ -127,7 +129,16 @@ def tune_model(estimator_cls, param_dist, X_train, y_train, task: str):
 
 def candidate_models_for(task: str, X_train, y_train):
     """Tune RF + HGB, keep the linear model fixed (fast/stable/low-variance),
-    and add a voting ensemble of all three as one more candidate."""
+    and add a voting ensemble of all three as one more candidate.
+
+    Classification candidates use class_weight="balanced" and are tuned/scored
+    on balanced accuracy rather than raw accuracy -- raw accuracy is what let a
+    model that just echoes the training data's ~56% historical up-day rate look
+    "good" without learning any real day-to-day signal. class_weight="balanced"
+    penalizes missing either class equally during training; balanced accuracy
+    (mean of per-class recall) scores that equally during selection. A model
+    that always predicts one class now scores exactly 50% on this metric,
+    matching the majority-class baseline instead of beating it for free."""
     if task == "regression":
         linear = Pipeline([("scale", StandardScaler()), ("model", Ridge(alpha=1.0))])
         rf, rf_params = tune_model(RandomForestRegressor, RF_PARAM_DIST, X_train, y_train, task)
@@ -141,9 +152,9 @@ def candidate_models_for(task: str, X_train, y_train):
             "voting_ensemble": ensemble,
         }, {"random_forest_tuned": rf_params, "hist_gradient_boosting_tuned": hgb_params}
     else:
-        linear = Pipeline([("scale", StandardScaler()), ("model", LogisticRegression(max_iter=1000))])
-        rf, rf_params = tune_model(RandomForestClassifier, RF_PARAM_DIST, X_train, y_train, task)
-        hgb, hgb_params = tune_model(HistGradientBoostingClassifier, HGB_PARAM_DIST, X_train, y_train, task)
+        linear = Pipeline([("scale", StandardScaler()), ("model", LogisticRegression(max_iter=1000, class_weight="balanced"))])
+        rf, rf_params = tune_model(RandomForestClassifier, RF_PARAM_DIST, X_train, y_train, task, {"class_weight": "balanced"})
+        hgb, hgb_params = tune_model(HistGradientBoostingClassifier, HGB_PARAM_DIST, X_train, y_train, task, {"class_weight": "balanced"})
         ensemble = VotingClassifier(estimators=[("linear", linear), ("rf", rf), ("hgb", hgb)], voting="soft")
         return {
             "baseline_majority": DummyClassifier(strategy="most_frequent"),
@@ -167,12 +178,18 @@ def evaluate_classification(name, model, X_train, y_train, X_test, y_test):
     model.fit(X_train, y_train)
     # Use the shared decision threshold (not sklearn's default 0.5) so what gets
     # reported/selected here matches exactly what predict.py/backtest_dates.py do.
-    pred = (model.predict_proba(X_test)[:, 1] > CLASSIFICATION_THRESHOLD).astype(int)
+    proba = model.predict_proba(X_test)[:, 1]
+    pred = (proba > CLASSIFICATION_THRESHOLD).astype(int)
     acc = accuracy_score(y_test, pred)
+    bal_acc = balanced_accuracy_score(y_test, pred)
     prec = precision_score(y_test, pred, zero_division=0)
     rec = recall_score(y_test, pred, zero_division=0)
     f1 = f1_score(y_test, pred, zero_division=0)
-    return {"model": name, "accuracy": acc, "precision": prec, "recall": rec, "f1": f1}, model
+    pct_predicted_up = float(pred.mean())
+    return {
+        "model": name, "accuracy": acc, "balanced_accuracy": bal_acc,
+        "precision": prec, "recall": rec, "f1": f1, "pct_predicted_up": pct_predicted_up,
+    }, model
 
 
 def plot_predictions(name, dates_test, close_test, pred_ret, out_path):
@@ -210,15 +227,45 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
         fitted_models[mname] = fitted
         preds[mname] = pred
 
-    is_baseline = lambda n: n in ("baseline_zero_return", "baseline_majority")
-    metric_key = "rmse" if task == "regression" else "accuracy"
+    # "Predict yesterday's value" is a famously strong finance baseline -- add
+    # a momentum-persistence baseline alongside the zero-return/majority-class
+    # ones. Uses the FULL (pre-feature-selection) frame so "ret_1d" is always
+    # present, since feature selection could otherwise have dropped it.
+    if task == "regression":
+        metrics, fitted, pred = evaluate_regression(
+            "baseline_persistence", PersistenceRegressor(), X_train_full, y_train, X_test_full, y_test
+        )
+    else:
+        metrics, fitted = evaluate_classification(
+            "baseline_persistence", PersistenceClassifier(), X_train_full, y_train, X_test_full, y_test
+        )
+        pred = None
+    results.append(metrics)
+    fitted_models["baseline_persistence"] = fitted
+    preds["baseline_persistence"] = pred
+
+    # Only the "know-nothing" floors (predict zero / predict the majority
+    # class) are excluded from actually winning -- they exist purely to show
+    # the bar. baseline_persistence ("tomorrow repeats today") is a real
+    # forecasting strategy and is deliberately left eligible to win: if a
+    # one-line momentum rule beats every tuned/ensembled model on held-out
+    # data, deploying the complex model anyway would mean shipping something
+    # provably worse than a dumb baseline, just because it's fancier.
+    is_floor_baseline = lambda n: n in ("baseline_zero_return", "baseline_majority")
+    metric_key = "rmse" if task == "regression" else "balanced_accuracy"
     better = (lambda a, b: a < b) if task == "regression" else (lambda a, b: a > b)
     best_name, best_val = None, (np.inf if task == "regression" else -np.inf)
     for r in results:
-        if is_baseline(r["model"]):
+        if is_floor_baseline(r["model"]):
             continue
         if better(r[metric_key], best_val):
             best_val, best_name = r[metric_key], r["model"]
+
+    # baseline_persistence was fit on X_*_full and only ever looks at "ret_1d" --
+    # it must be served that column at inference time regardless of what the
+    # OTHER candidates' feature selection kept, or a later predict() KeyErrors
+    # on a column that got dropped from the top-K selection.
+    winning_feature_columns = ["ret_1d"] if best_name == "baseline_persistence" else selected_cols
 
     return {
         "results": results,
@@ -226,7 +273,7 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
         "best_model": fitted_models[best_name],
         "best_pred": preds.get(best_name),
         "best_metric": best_val,
-        "feature_columns": selected_cols,
+        "feature_columns": winning_feature_columns,
         "tuned_params": tuned_params,
     }
 
@@ -243,12 +290,16 @@ def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list
           f"{X_test.index.min().date()}..{X_test.index.max().date()})")
 
     reg = run_task(X_train, y_ret_train, X_test, y_ret_test, "regression", label)
-    print(f"  [{label}] best regressor: {reg['best_name']} (rmse={reg['best_metric']:.5f}, "
-          f"{len(reg['feature_columns'])} features)")
+    reg_persist_rmse = next(r for r in reg["results"] if r["model"] == "baseline_persistence")["rmse"]
+    print(f"  [{label}] best regressor: {reg['best_name']} (rmse={reg['best_metric']:.5f} vs. "
+          f"persistence baseline {reg_persist_rmse:.5f}, {len(reg['feature_columns'])} features)")
 
     clf = run_task(X_train, y_dir_train, X_test, y_dir_test, "classification", label)
-    print(f"  [{label}] best classifier: {clf['best_name']} (accuracy={clf['best_metric']:.4f}, "
-          f"{len(clf['feature_columns'])} features)")
+    clf_row = next(r for r in clf["results"] if r["model"] == clf["best_name"])
+    clf_persist_bal_acc = next(r for r in clf["results"] if r["model"] == "baseline_persistence")["balanced_accuracy"]
+    print(f"  [{label}] best classifier: {clf['best_name']} (balanced_accuracy={clf['best_metric']:.4f} vs. "
+          f"persistence baseline {clf_persist_bal_acc:.4f}, accuracy={clf_row['accuracy']:.4f}, "
+          f"predicts UP {clf_row['pct_predicted_up']:.0%} of the time, {len(clf['feature_columns'])} features)")
 
     return {
         "label": label,
@@ -265,9 +316,9 @@ def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, summar
     reg_pick = enhanced if enhanced["reg"]["best_metric"] < baseline["reg"]["best_metric"] else baseline
     clf_pick = enhanced if enhanced["clf"]["best_metric"] > baseline["clf"]["best_metric"] else baseline
 
-    print(f"  >> regressor RMSE:      {baseline['reg']['best_metric']:.5f} (baseline) -> "
+    print(f"  >> regressor RMSE:              {baseline['reg']['best_metric']:.5f} (baseline) -> "
           f"{enhanced['reg']['best_metric']:.5f} (with macro)  -- keeping '{reg_pick['label']}'")
-    print(f"  >> classifier accuracy: {baseline['clf']['best_metric']:.1%} (baseline) -> "
+    print(f"  >> classifier balanced accuracy: {baseline['clf']['best_metric']:.1%} (baseline) -> "
           f"{enhanced['clf']['best_metric']:.1%} (with macro)  -- keeping '{clf_pick['label']}'")
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -296,7 +347,7 @@ def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, summar
     return {
         "ticker": name,
         "baseline_reg_rmse": baseline["reg"]["best_metric"], "with_macro_reg_rmse": enhanced["reg"]["best_metric"],
-        "baseline_clf_acc": baseline["clf"]["best_metric"], "with_macro_clf_acc": enhanced["clf"]["best_metric"],
+        "baseline_clf_balanced_acc": baseline["clf"]["best_metric"], "with_macro_clf_balanced_acc": enhanced["clf"]["best_metric"],
         "regressor_kept": f"{reg_pick['label']} / {reg_pick['reg']['best_name']}",
         "classifier_kept": f"{clf_pick['label']} / {clf_pick['clf']['best_name']}",
     }
