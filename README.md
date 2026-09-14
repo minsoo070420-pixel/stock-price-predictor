@@ -35,6 +35,8 @@ python src/news_pulse.py      # just the live news-sentiment readout, on its own
 python src/implied_vol.py     # just the live single-stock implied-vol/skew readout (AAPL, PLTR), on its own
 python src/backtest_dates.py  # walk-forward accuracy check + transaction-cost reality check over recent days
 python src/leakage_check.py   # verifies no feature depends on future data (see the checklist below)
+python src/long_horizon_drift.py    # NOT day-to-day forecasting -- see "The 80-90% question" below
+python src/predict_long_horizon.py  # ditto -- read that section before running either
 ```
 
 `train.py` re-downloads fresh history every run, so re-run it periodically
@@ -345,6 +347,62 @@ directional accuracy is close to a coin flip for SP500/PLTR, and moderately
 better (~60-65%) for AAPL, generally improving somewhat as the close gets nearer
 — consistent with markets getting more efficient to predict at short lags but
 still not a reliable trading edge.
+
+## The 80-90% question: can this hit 80-90% accuracy?
+
+Not at daily-direction prediction, no — and that's not a limitation of this
+particular pipeline, it's close to a hard ceiling for anyone. Every lever
+pulled in this project (hyperparameter tuning, ensembling, 26 macro/world
+features, options-implied volatility, class-weighting) moved balanced
+accuracy by low single digits at best, and the strongest model found for any
+of the three tickers was a **one-line momentum rule**, which beat every
+tuned model built here. Professional quant funds with vastly more data,
+compute, and expertise report hit rates around 52-58% on their best signals
+— 80-90% on a liquid, publicly-traded asset's next-day direction would imply
+a near risk-free money machine sitting in plain sight, which markets don't
+leave lying around.
+
+`src/long_horizon_drift.py` and `src/predict_long_horizon.py` answer a
+**different, much weaker question** that genuinely can hit 80%+: not "what
+will tomorrow's direction be," but "if you always bet UP and hold for N
+trading days, how often would that have worked historically?" A high hit
+rate there reflects the equity market's well-documented long-run upward
+drift (the equity risk premium) — it is a reframed buy-and-hold backtest, not
+a discovered signal, and it says nothing about tomorrow's price.
+
+**What the analysis actually found, empirically, out-of-sample** (`reports/long_horizon_drift.csv`
+has the full horizon-by-horizon table):
+
+| Ticker | Shortest horizon crossing 80% OOS | OOS hit rate | Independent samples |
+|---|---|---|---|
+| SP500 | 2 months (42 trading days) | 86.6% | ~7 |
+| AAPL | 6 months (126 trading days) | 97.6% | **~1** |
+| PLTR | *none* | — | — |
+
+Read this carefully, not just the headline numbers:
+
+- **The overlapping-window trap**: a 6-month window and the next day's 6-month
+  window share 125 of 126 days — they are not independent evidence. AAPL's
+  "251 test windows" is really **about one independent 6-month period**. That
+  97.6% is closer to "AAPL happened to keep going up during the one stretch
+  we have" than a validated statistic. SP500's 86.6% (~7 independent windows)
+  is on firmer ground but still thin by any normal statistical standard.
+- **PLTR breaks the whole premise.** At longer horizons its out-of-sample hit
+  rate actually *drops* to 27-33% — the held-out test period was a genuine
+  down-trending stretch for PLTR, so "always bet UP" would have been wrong
+  most of the time. `predict_long_horizon.py` deliberately makes no call for
+  PLTR rather than force an 80% claim that the data doesn't support — a
+  script that found a way to claim 80%+ for all three tickers regardless of
+  what actually happened would be fitting the conclusion, not reporting it.
+- **This only "works" as long as the drift continues.** Every one of these
+  numbers is a statement about the past, extrapolated forward on the
+  assumption the trend holds. When it doesn't — as it apparently didn't for
+  PLTR in this exact test window — the approach fails, and it fails in
+  exactly the direction that matters (calling UP right before a decline).
+
+Net: 80-90% is achievable *as a number*, but only by predicting something
+much less useful than "will the stock go up tomorrow," and even that weaker
+claim's evidence is thinner than the headline percentage suggests.
 
 ## Extending this
 
