@@ -19,6 +19,8 @@ MACRO_FEATURE_COLUMNS = [
     "qqq_ret_1d",
     "nikkei_ret_1d", "ftse_ret_1d", "dax_ret_1d",
     "btc_ret_1d", "btc_vol_10d",
+    "vix_term_structure", "vix_term_structure_chg_1d",
+    "vxn_level", "vxn_zscore", "vxn_ret_1d",
 ]
 
 
@@ -45,6 +47,8 @@ def build_macro_features(macro_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     ftse = _close(macro_data["FTSE"])
     dax = _close(macro_data["DAX"])
     btc = _close(macro_data["BTC"])
+    vix3m = _close(macro_data["VIX3M"])
+    vxn = _close(macro_data["VXN"])
 
     out = pd.DataFrame(index=vix.index)
     out["vix_level"] = vix
@@ -87,6 +91,20 @@ def build_macro_features(macro_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     btc_ret = btc.pct_change()
     out["btc_ret_1d"] = btc_ret
     out["btc_vol_10d"] = btc_ret.rolling(10).std()
+
+    # Options-implied volatility (genuinely forward-looking, unlike everything else
+    # above which is derived from past prices): VIX is the S&P 500's own 30-day
+    # implied vol, so it already is an options-implied-vol feature. VIX3M/VIX gives
+    # the vol term structure -- >1 (contango) is the normal state; <1 (backwardation,
+    # near-term IV pricier than farther-out) is a well-known near-term-stress signal.
+    # VXN is the Nasdaq-100's equivalent, more relevant to AAPL/PLTR specifically.
+    term_structure = vix3m / vix
+    out["vix_term_structure"] = term_structure
+    out["vix_term_structure_chg_1d"] = term_structure.diff()
+
+    out["vxn_level"] = vxn
+    out["vxn_zscore"] = (vxn - vxn.rolling(60).mean()) / vxn.rolling(60).std()
+    out["vxn_ret_1d"] = vxn.pct_change()
 
     out = out.replace([np.inf, -np.inf], np.nan)
     return out

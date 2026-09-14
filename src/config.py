@@ -33,6 +33,10 @@ MACRO_TICKERS = {
     "^GDAXI": "DAX",   # Germany -- ditto
     "BTC-USD": "BTC",  # trades 24/7 incl. weekends -- captures risk sentiment/news
                        # equities can't price in until the next session
+    "^VIX3M": "VIX3M", # 3-month S&P 500 implied vol -- vs. ^VIX (30-day) gives the
+                       # vol term structure (contango/backwardation is a known stress signal)
+    "^VXN": "VXN",     # Nasdaq-100 30-day implied vol -- forward-looking vol proxy
+                       # relevant to AAPL/PLTR specifically, not just the broad market
 }
 
 # Hyperparameter search / feature-selection settings for train.py

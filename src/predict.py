@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import CLASSIFICATION_THRESHOLD, MODELS_DIR, TICKERS
 from features import build_features, FEATURE_COLUMNS
 from fetch_data import fetch_all, fetch_macro_all
+from implied_vol import implied_vol_snapshot
 from macro_features import align_macro_to_ticker, build_macro_features
 from news_pulse import sentiment_for_symbol
 
@@ -38,9 +39,12 @@ def predict_next_day(name: str, symbol: str, df: pd.DataFrame, macro_df: pd.Data
     pred_dir_proba = float(clf.predict_proba(latest[manifest["classifier"]])[0][1])
     pred_dir = int(pred_dir_proba > CLASSIFICATION_THRESHOLD)
 
-    # Live news sentiment: shown for context, NOT an input to the trained model
-    # (see news_pulse.py for why -- no free source has point-in-time history to train on).
+    # Live news sentiment and single-stock implied vol: shown for context, NOT
+    # inputs to the trained model (see news_pulse.py / implied_vol.py for why --
+    # no free source has point-in-time history for either to train on). Index-level
+    # implied vol (VIX/VIX3M/VXN) IS trained in -- see macro_features.py.
     news = sentiment_for_symbol(symbol)
+    iv = implied_vol_snapshot(symbol) if not symbol.startswith("^") else None
 
     return {
         "ticker": name,
@@ -51,7 +55,8 @@ def predict_next_day(name: str, symbol: str, df: pd.DataFrame, macro_df: pd.Data
         "predicted_direction": "UP" if pred_dir == 1 else "DOWN",
         "up_probability": pred_dir_proba,
         "live_news_sentiment": news["label"],
-        "news_headlines_seen": news["n_headlines"],
+        "live_atm_iv": iv["atm_iv"] if iv else None,
+        "live_iv_skew": iv["iv_skew"] if iv else None,
     }
 
 
@@ -73,7 +78,8 @@ def main():
     pd.set_option("display.float_format", lambda x: f"{x:,.3f}")
     print("\nNext trading day predictions:")
     print(df.to_string(index=False))
-    print("\n(live_news_sentiment is shown for context only -- the model was not trained on it; see news_pulse.py)")
+    print("\n(live_news_sentiment and live_atm_iv/live_iv_skew are shown for context only -- not used by "
+          "the trained models; see news_pulse.py / implied_vol.py. Index-level implied vol IS trained in.)")
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ pip install -r requirements.txt
 python src/train.py           # fetches data, engineers features, tunes + evaluates models, saves the best ones
 python src/predict.py         # loads saved models, prints tomorrow's prediction + live news sentiment for each ticker
 python src/news_pulse.py      # just the live news-sentiment readout, on its own
+python src/implied_vol.py     # just the live single-stock implied-vol/skew readout (AAPL, PLTR), on its own
 python src/backtest_dates.py  # walk-forward accuracy check + transaction-cost reality check over recent days
 python src/leakage_check.py   # verifies no feature depends on future data (see the checklist below)
 ```
@@ -45,25 +46,30 @@ python src/leakage_check.py   # verifies no feature depends on future data (see 
 2. **`src/features.py`** — builds ~20 "own" features per day from *only* past data (no
    look-ahead): lagged returns, SMA ratios (5/10/20/50d), rolling volatility, RSI(14), MACD,
    Bollinger Band position/width, volume change, day-of-week.
-3. **`src/macro_features.py`** — builds 21 cross-market/"world" features shared across all
-   three tickers: VIX level/z-score, 10Y Treasury yield level/change, the 10Y-vs-13-week yield
-   curve slope (recession-risk signal), dollar index return, oil/gold returns, Dow/Nasdaq/Russell
-   2000 returns, Nikkei/FTSE/DAX returns (how Asia and Europe already traded before the US session
-   opens), Bitcoin return/volatility (trades weekends, so it reflects global news equities can't
-   price in until Monday), a credit-stress proxy (high-yield bond ETF return minus Treasury bond
-   ETF return), and QQQ return (tech-sector proxy). All same-day (close of day *t*), which is
-   valid information for predicting day *t+1* — no look-ahead.
-4. **`src/train.py`** — chronological (not shuffled) train/test split, last ~15% of days held out
+3. **`src/macro_features.py`** — builds 26 cross-market/"world" features shared across all
+   three tickers: VIX level/z-score (S&P 500's own options-implied vol), the VIX/VIX3M term
+   structure and VXN (Nasdaq-100 implied vol) for more implied-vol signal, 10Y Treasury yield
+   level/change, the 10Y-vs-13-week yield curve slope (recession-risk signal), dollar index
+   return, oil/gold returns, Dow/Nasdaq/Russell 2000 returns, Nikkei/FTSE/DAX returns (how Asia
+   and Europe already traded before the US session opens), Bitcoin return/volatility (trades
+   weekends, so it reflects global news equities can't price in until Monday), a credit-stress
+   proxy (high-yield bond ETF return minus Treasury bond ETF return), and QQQ return (tech-sector
+   proxy). All same-day (close of day *t*), which is valid information for predicting day *t+1*
+   — no look-ahead.
+4. **`src/implied_vol.py`** — live single-stock options-implied-vol/skew snapshot for AAPL/PLTR
+   (see "Options-implied volatility" below for why this is live-only, not trained).
+5. **`src/train.py`** — chronological (not shuffled) train/test split, last ~15% of days held out
    as the final, untouched evaluation set. For each ticker, trains and compares two feature sets —
-   **baseline** (own features only, 23) and **enhanced** (own + macro/world, 44) — and for each,
+   **baseline** (own features only, 23) and **enhanced** (own + macro/world, 49) — and for each,
    runs the optimization pipeline described below. Saves a test-period actual-vs-predicted chart to
    `reports/`, and full metrics to `reports/model_comparison.csv`.
-5. **`src/predict.py`** — recomputes features on the latest available day and prints tomorrow's
-   predicted return, direction, reconstructed price, and a live news-sentiment readout for context.
-6. **`src/news_pulse.py`** — live news-sentiment snapshot (see "World-events layer" below).
-7. **`src/baselines.py`** — finance-specific dumb baselines (momentum persistence), eligible to
+6. **`src/predict.py`** — recomputes features on the latest available day and prints tomorrow's
+   predicted return, direction, reconstructed price, live news sentiment, and live implied vol/skew
+   for context.
+7. **`src/news_pulse.py`** — live news-sentiment snapshot (see "World-events layer" below).
+8. **`src/baselines.py`** — finance-specific dumb baselines (momentum persistence), eligible to
    actually win model selection, not just serve as a floor (see the checklist below — this matters).
-8. **`src/leakage_check.py`** — rebuilds every feature from truncated history and verifies it's
+9. **`src/leakage_check.py`** — rebuilds every feature from truncated history and verifies it's
    identical to the production version, to actually verify (not assume) there's no look-ahead.
 
 ## Optimization pipeline (per ticker, per task, per feature set)
@@ -227,16 +233,64 @@ Fixing that at the source — `class_weight="balanced"` plus scoring on
 *balanced* accuracy — dropped the honest number to 49.6-52.3%. Then, adding
 the persistence baseline as an eligible competitor (checklist item #4 above)
 revealed the real punchline: that simple "tomorrow repeats today" rule beats
-every tuned/ensembled candidate outright, for all three tickers (SP500 52.2%,
-AAPL 50.8%, PLTR 57.9% balanced accuracy) — so it's now what's actually
+every tuned/ensembled candidate outright, for all three tickers (SP500 ~52%,
+AAPL ~51%, PLTR ~58% balanced accuracy) — so it's now what's actually
 deployed. All the feature engineering, hyperparameter tuning, and ensembling
 in this project's classifiers, combined, do not beat one line of momentum
-logic. That's the most useful single finding in this whole README.
+logic. That's the most useful single finding in this whole README, and it
+held even after adding options-implied volatility (below) — the next
+section's honest numbers make the same point again with a different feature.
 
 `train.py` still evaluates every feature-set/model combination on the same
 held-out window and keeps whichever wins per ticker per task, so it never
 defaults to the fancier setup just because it's newer — that part of the
 methodology didn't change, only the metric being optimized for did.
+
+## Options-implied volatility: the same free-data ceiling as news, again
+
+Implied vol is forward-looking in a way price-derived technical indicators
+aren't — it's the market's own current bet on future volatility, priced into
+options today, rather than a description of what already happened. Same
+two-tier split as the world-events layer below:
+
+- **Backtestable** (trained into the models, `macro_features.py`): VIX *is*
+  already an options-implied-vol feature — it's literally the S&P 500's own
+  30-day implied volatility, derived from SPX options, and has been in this
+  pipeline since macro features were added. New this pass: **VIX3M** (the
+  3-month sibling) gives the **vol term structure** (`vix_term_structure` =
+  VIX3M/VIX — below 1, "backwardation," is a well-known near-term-stress
+  signal), and **VXN** (Nasdaq-100's own 30-day implied vol) is a
+  sector-relevant proxy for AAPL/PLTR specifically. All three have full
+  historical daily archives via `yfinance`, so — unlike single-stock IV below
+  — they can be properly backtested with no look-ahead.
+- **Live-only, shown as context, NOT trained into the model**
+  (`implied_vol.py`, surfaced in `predict.py`'s `live_atm_iv`/`live_iv_skew`
+  columns for AAPL/PLTR): current at-the-money implied vol (~30 days out) and
+  put/call skew, read directly from each stock's live options chain. Same
+  constraint as news: Yahoo (and every other free source checked) only
+  exposes *current* options chains for individual equities, no historical
+  archive, so there's nothing to backtest a "trained on AAPL's own IV"
+  feature against. A real version of this would need a paid options-data
+  vendor (OptionMetrics, CBOE DataShop, ORATS).
+
+**Honest result**: adding VIX3M term structure and VXN did not move the
+needle. Classifier balanced accuracy barely changed (SP500 ~52.0%→51.9%,
+PLTR unchanged at ~58.3%; AAPL's small uptick to ~51.2% turned out to be a
+test-window artifact, not signal — see caveat below), and `baseline_persistence`
+still wins the classifier slot for all three tickers regardless. This is the
+same story as the original macro features and the world-market additions:
+another financially sensible, theoretically forward-looking signal that
+doesn't break through the wall this category of data runs into.
+
+*Caveat on comparing feature sets when persistence wins*: `baseline_persistence`
+only ever looks at `ret_1d` — it doesn't use VIX3M, VXN, or anything else in
+the "enhanced" feature set. When it wins both the baseline and enhanced runs
+(as it usually does), any small difference between those two results reflects
+a slightly different test-window date range (macro data's rolling-window
+warmup trims a few different rows) rather than the extra features actually
+mattering. The comparison is only informative when the winning model
+genuinely depends on the feature set — true for every regressor here, not
+always true for these classifiers.
 
 ## World-events layer: what's actually feasible without a paid data source
 
