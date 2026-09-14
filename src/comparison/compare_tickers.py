@@ -27,11 +27,13 @@ from backtest_dates import backtest_ticker
 from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TEST_FRACTION, TICKERS
 from features import FEATURE_COLUMNS, make_dataset
 from fetch_data import fetch_all, fetch_macro_all
+from long_horizon_drift import analyze_ticker
 from macro_features import build_macro_features
 from predict_long_horizon import LONG_HORIZON_CALLS
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
 
 RECENT_BACKTEST_DAYS = 30
+FOUR_HORIZONS = ["1 month", "3 months", "6 months", "1 year"]
 
 DISCLAIMER = (
     "=" * 78 + "\n"
@@ -94,6 +96,26 @@ def long_horizon_stats(name: str) -> dict:
     }
 
 
+def four_horizon_table() -> pd.DataFrame:
+    """Out-of-sample UP hit rate at exactly 1/3/6/12 months, per ticker --
+    NOT a ranking, NOT a recommendation. Reuses long_horizon_drift.py's own
+    analysis (same walk-forward split, same overlapping-window caveats)
+    rather than recomputing anything new."""
+    all_rows = []
+    for name in TICKERS.values():
+        g = analyze_ticker(name)
+        g = g[g["horizon"].isin(FOUR_HORIZONS)]
+        all_rows.append(g)
+    combined = pd.concat(all_rows, ignore_index=True)
+    pivot = combined.pivot(index="ticker", columns="horizon", values="test_hit_rate")
+    pivot = pivot[[h for h in FOUR_HORIZONS if h in pivot.columns]]  # keep requested order
+    reliable = combined.pivot(index="ticker", columns="horizon", values="reliable")
+    reliable = reliable[[h for h in FOUR_HORIZONS if h in reliable.columns]]
+    indep_n = combined.pivot(index="ticker", columns="horizon", values="effective_independent_n")
+    indep_n = indep_n[[h for h in FOUR_HORIZONS if h in indep_n.columns]]
+    return pivot, reliable, indep_n
+
+
 def main():
     print(DISCLAIMER)
     print("\nFetching data...")
@@ -119,10 +141,27 @@ def main():
     print(f"  recent_*                -- last {RECENT_BACKTEST_DAYS} trading days (small sample, noisy -- see README sampling-noise math)")
     print("  long_horizon_*          -- a DIFFERENT, much weaker claim (buy-and-hold drift, not day-to-day prediction)")
 
+    print(f"\n{'-'*78}")
+    print("Out-of-sample UP hit rate at 1/3/6/12 months, per ticker.")
+    print("This answers 'how often has always-betting-UP-and-holding worked historically,'")
+    print("NOT 'which stock will go up.' No ticker is ranked or recommended here.\n")
+    hit_rates, reliable, indep_n = four_horizon_table()
+    printable = hit_rates.copy()
+    for col in printable.columns:
+        printable[col] = [
+            f"{v:.1%}" + ("" if rel else " (unreliable, <20 windows)") + f"  [~{int(n)} indep.]"
+            if pd.notna(v) else "n/a"
+            for v, rel, n in zip(hit_rates[col], reliable[col], indep_n[col])
+        ]
+    print(printable.to_string())
+    print("\nReminder: overlapping windows inflate apparent sample size -- '~N indep.' is the honest count.")
+
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / "ticker_comparison.csv"
     result.to_csv(out_path)
-    print(f"\nSaved to {out_path}")
+    horizon_out_path = REPORTS_DIR / "four_horizon_comparison.csv"
+    hit_rates.to_csv(horizon_out_path)
+    print(f"\nSaved to {out_path} and {horizon_out_path}")
     print(f"\n{DISCLAIMER}")
 
 

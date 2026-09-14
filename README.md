@@ -514,6 +514,30 @@ separate rather than blended into one score:
   Blending this in with the daily numbers would be comparing two different
   questions as if they were one.
 
+The tool also prints (and saves to `reports/four_horizon_comparison.csv`) the
+out-of-sample UP hit rate at exactly **1 month, 3 months, 6 months, and 1
+year**, per ticker — a fixed horizon breakdown reusing `long_horizon_drift.py`'s
+own walk-forward analysis rather than computing anything new:
+
+```
+horizon              1 month            3 months            6 months               1 year
+AAPL     63.8%  [~16 indep.]  79.0%  [~4 indep.]  97.6%  [~1 indep.]  100.0%  [~0 indep.]
+PLTR      39.7%  [~9 indep.]  27.2%  [~2 indep.]  29.3%  [~0 indep.]                  n/a
+SP500    74.2%  [~16 indep.]  90.4%  [~4 indep.]  95.2%  [~1 indep.]  100.0%  [~0 indep.]
+```
+
+The `[~N indep.]` figure is the point of showing this at all: it's the
+effective *independent* sample count once overlapping windows are accounted
+for, and it shrinks toward zero exactly where the headline percentages look
+most impressive (6-12 months). PLTR's numbers *decline* at longer horizons
+instead of climbing — a genuine, structurally different result, not
+something smoothed over to make the table look consistent across tickers.
+This table was requested as an input to "optimize the investment strategy" —
+that specific framing was declined for the same reason as the ticker ranking
+above: it's investment advice regardless of which horizons back it. What's
+shown here is the same descriptive statistic, at the four horizons asked
+for, with nothing built on top of it that says what to do with it.
+
 **Why this exists, and why it stops exactly here**: a user asked this
 project to "give advice for which stocks we should invest in." That's
 personalized investment advice, which this project does not provide — not as
