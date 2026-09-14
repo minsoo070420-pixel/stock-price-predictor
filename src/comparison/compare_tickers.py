@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
+import yfinance as yf
 from backtest_dates import backtest_ticker
 from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TEST_FRACTION, TICKERS
 from features import FEATURE_COLUMNS, make_dataset
@@ -83,6 +84,31 @@ def recent_backtest_stats(name: str, macro_df: pd.DataFrame) -> dict:
         "recent_accuracy": float(scored["direction_correct"].mean()),
         "recent_net_bps_per_trade": float(scored["net_return_bps"].mean()),
         "recent_cumulative_pct": float(scored["net_return_bps"].sum() / 100),
+    }
+
+
+def fundamental_stats(symbol: str) -> dict:
+    """Raw, unopinionated fundamental data -- no verdict attached, nothing
+    labeled 'cheap' or 'expensive'. ^GSPC is an index, not a company, so most
+    of these fields are structurally unavailable for it (not a data gap to
+    fill in, just not a thing an index has)."""
+    try:
+        info = yf.Ticker(symbol).info
+    except Exception:
+        info = {}
+    market_cap = info.get("marketCap")
+    return {
+        "trailing_pe": info.get("trailingPE"),
+        "forward_pe": info.get("forwardPE"),
+        "market_cap_billions": (market_cap / 1e9) if market_cap else None,
+        "price_to_book": info.get("priceToBook"),
+        "dividend_yield_pct": (info.get("dividendYield") or None),
+        "beta": info.get("beta"),
+        "profit_margin_pct": (info.get("profitMargins") * 100) if info.get("profitMargins") is not None else None,
+        "revenue_growth_pct": (info.get("revenueGrowth") * 100) if info.get("revenueGrowth") is not None else None,
+        "sector": info.get("sector") or ("Index, not a company" if symbol.startswith("^") else None),
+        "52w_low": info.get("fiftyTwoWeekLow"),
+        "52w_high": info.get("fiftyTwoWeekHigh"),
     }
 
 
@@ -156,12 +182,27 @@ def main():
     print(printable.to_string())
     print("\nReminder: overlapping windows inflate apparent sample size -- '~N indep.' is the honest count.")
 
+    print(f"\n{'-'*78}")
+    print("Raw fundamental data -- purely descriptive, no verdict attached, nothing")
+    print("here is labeled 'cheap' or 'expensive'. SP500 is an index, not a company,")
+    print("so most fields are structurally n/a for it, not a missing data point.\n")
+    fund_rows = []
+    for symbol, name in TICKERS.items():
+        row = {"ticker": name}
+        row.update(fundamental_stats(symbol))
+        fund_rows.append(row)
+    fundamentals = pd.DataFrame(fund_rows).set_index("ticker")
+    pd.set_option("display.float_format", lambda x: f"{x:,.2f}")
+    print(fundamentals.to_string())
+
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / "ticker_comparison.csv"
     result.to_csv(out_path)
     horizon_out_path = REPORTS_DIR / "four_horizon_comparison.csv"
     hit_rates.to_csv(horizon_out_path)
-    print(f"\nSaved to {out_path} and {horizon_out_path}")
+    fund_out_path = REPORTS_DIR / "fundamentals_comparison.csv"
+    fundamentals.to_csv(fund_out_path)
+    print(f"\nSaved to {out_path}, {horizon_out_path}, and {fund_out_path}")
     print(f"\n{DISCLAIMER}")
 
 

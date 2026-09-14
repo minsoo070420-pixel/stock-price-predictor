@@ -538,6 +538,31 @@ above: it's investment advice regardless of which horizons back it. What's
 shown here is the same descriptive statistic, at the four horizons asked
 for, with nothing built on top of it that says what to do with it.
 
+The tool also prints raw fundamental data (`reports/fundamentals_comparison.csv`)
+— trailing/forward P/E, market cap, price-to-book, dividend yield, beta,
+profit margin, revenue growth, sector, 52-week range — pulled directly from
+`yfinance`, with no verdict attached and nothing labeled "cheap" or
+"expensive":
+
+```
+        trailing_pe  forward_pe  market_cap_billions  price_to_book  profit_margin_pct  revenue_growth_pct
+SP500           n/a         n/a                   n/a            n/a                n/a                 n/a   (index, not a company)
+AAPL          38.39       34.90              4,880.59          45.44              27.62               16.40
+PLTR         147.57       74.23                414.91          42.44              49.01               92.80
+```
+
+SP500 is genuinely `n/a` for nearly every column — an index isn't a company
+and structurally has no P/E or market cap, which is different from a missing
+data point that should be filled in. This was added after a request to
+recommend specific stocks to buy, phrased as wanting "a good company cheap,
+not a good company at an expensive price" — which was declined (see below)
+independent of whether the ticker list was widened, because giving
+investment advice isn't something that changes with scope or phrasing. What
+*can* be given honestly is the raw numbers a value-investing judgment would
+actually be based on, with the judgment itself left to the reader — PLTR's
+147x trailing P/E next to AAPL's 38x is shown here exactly as data, not as
+an answer to "which one is the better buy."
+
 **Why this exists, and why it stops exactly here**: a user asked this
 project to "give advice for which stocks we should invest in." That's
 personalized investment advice, which this project does not provide — not as
