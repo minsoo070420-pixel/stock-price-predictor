@@ -6,6 +6,22 @@ Predicts the next trading day's return/direction for the S&P 500 index (`^GSPC`)
 Apple (`AAPL`), and Palantir (`PLTR`) using classic ML on engineered technical
 features. No paid data or API keys required (uses `yfinance`).
 
+## Two pieces
+
+The project is split into two clearly separated parts, each with its own job:
+
+- **`src/engine/`** — Part 1, the prediction/backtest/research engine. Everything
+  that fetches data, engineers features, trains and tunes models, verifies
+  there's no leakage, and backtests results. This is all of the work described
+  in the rest of this README.
+- **`src/comparison/`** — Part 2, a neutral descriptive-statistics comparison
+  across the three tickers, built entirely from Part 1's own outputs. It
+  reports how each ticker's model has performed historically — held-out test
+  accuracy, recent backtest accuracy, cost-adjusted returns, long-horizon
+  drift — side by side. **It does not train anything new, and it does not
+  recommend a trade.** See "Descriptive ticker comparison" below for why that
+  line matters and isn't just a formality.
+
 ## What it actually predicts
 
 Raw closing price is almost perfectly autocorrelated (tomorrow's price ≈
@@ -29,14 +45,16 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python src/train.py           # fetches data, engineers features, tunes + evaluates models, saves the best ones
-python src/predict.py         # loads saved models, prints tomorrow's prediction + live news sentiment for each ticker
-python src/news_pulse.py      # just the live news-sentiment readout, on its own
-python src/implied_vol.py     # just the live single-stock implied-vol/skew readout (AAPL, PLTR), on its own
-python src/backtest_dates.py  # walk-forward accuracy check + transaction-cost reality check over recent days
-python src/leakage_check.py   # verifies no feature depends on future data (see the checklist below)
-python src/long_horizon_drift.py    # NOT day-to-day forecasting -- see "The 80-90% question" below
-python src/predict_long_horizon.py  # ditto -- read that section before running either
+python src/engine/train.py           # fetches data, engineers features, tunes + evaluates models, saves the best ones
+python src/engine/predict.py         # loads saved models, prints tomorrow's prediction + live news sentiment for each ticker
+python src/engine/news_pulse.py      # just the live news-sentiment readout, on its own
+python src/engine/implied_vol.py     # just the live single-stock implied-vol/skew readout (AAPL, PLTR), on its own
+python src/engine/backtest_dates.py  # walk-forward accuracy check + transaction-cost reality check over recent days
+python src/engine/leakage_check.py   # verifies no feature depends on future data (see the checklist below)
+python src/engine/long_horizon_drift.py    # NOT day-to-day forecasting -- see "The 80-90% question" below
+python src/engine/predict_long_horizon.py  # ditto -- read that section before running either
+
+python src/comparison/compare_tickers.py   # Part 2: neutral side-by-side stats across tickers, NOT investment advice
 ```
 
 `train.py` re-downloads fresh history every run, so re-run it periodically
@@ -44,11 +62,11 @@ python src/predict_long_horizon.py  # ditto -- read that section before running 
 
 ## Pipeline
 
-1. **`src/fetch_data.py`** — downloads ~10 years of daily OHLCV via `yfinance`, caches to `data/*.csv`.
-2. **`src/features.py`** — builds ~20 "own" features per day from *only* past data (no
+1. **`src/engine/fetch_data.py`** — downloads ~10 years of daily OHLCV via `yfinance`, caches to `data/*.csv`.
+2. **`src/engine/features.py`** — builds ~20 "own" features per day from *only* past data (no
    look-ahead): lagged returns, SMA ratios (5/10/20/50d), rolling volatility, RSI(14), MACD,
    Bollinger Band position/width, volume change, day-of-week.
-3. **`src/macro_features.py`** — builds 26 cross-market/"world" features shared across all
+3. **`src/engine/macro_features.py`** — builds 26 cross-market/"world" features shared across all
    three tickers: VIX level/z-score (S&P 500's own options-implied vol), the VIX/VIX3M term
    structure and VXN (Nasdaq-100 implied vol) for more implied-vol signal, 10Y Treasury yield
    level/change, the 10Y-vs-13-week yield curve slope (recession-risk signal), dollar index
@@ -58,20 +76,20 @@ python src/predict_long_horizon.py  # ditto -- read that section before running 
    proxy (high-yield bond ETF return minus Treasury bond ETF return), and QQQ return (tech-sector
    proxy). All same-day (close of day *t*), which is valid information for predicting day *t+1*
    — no look-ahead.
-4. **`src/implied_vol.py`** — live single-stock options-implied-vol/skew snapshot for AAPL/PLTR
+4. **`src/engine/implied_vol.py`** — live single-stock options-implied-vol/skew snapshot for AAPL/PLTR
    (see "Options-implied volatility" below for why this is live-only, not trained).
-5. **`src/train.py`** — chronological (not shuffled) train/test split, last ~15% of days held out
+5. **`src/engine/train.py`** — chronological (not shuffled) train/test split, last ~15% of days held out
    as the final, untouched evaluation set. For each ticker, trains and compares two feature sets —
    **baseline** (own features only, 23) and **enhanced** (own + macro/world, 49) — and for each,
    runs the optimization pipeline described below. Saves a test-period actual-vs-predicted chart to
    `reports/`, and full metrics to `reports/model_comparison.csv`.
-6. **`src/predict.py`** — recomputes features on the latest available day and prints tomorrow's
+6. **`src/engine/predict.py`** — recomputes features on the latest available day and prints tomorrow's
    predicted return, direction, reconstructed price, live news sentiment, and live implied vol/skew
    for context.
-7. **`src/news_pulse.py`** — live news-sentiment snapshot (see "World-events layer" below).
-8. **`src/baselines.py`** — finance-specific dumb baselines (momentum persistence), eligible to
+7. **`src/engine/news_pulse.py`** — live news-sentiment snapshot (see "World-events layer" below).
+8. **`src/engine/baselines.py`** — finance-specific dumb baselines (momentum persistence), eligible to
    actually win model selection, not just serve as a floor (see the checklist below — this matters).
-9. **`src/leakage_check.py`** — rebuilds every feature from truncated history and verifies it's
+9. **`src/engine/leakage_check.py`** — rebuilds every feature from truncated history and verifies it's
    identical to the production version, to actually verify (not assume) there's no look-ahead.
 
 ## Optimization pipeline (per ticker, per task, per feature set)
@@ -152,11 +170,11 @@ change — it's this change correcting an inflated number from before it.
 A standard list of things that quietly wreck financial ML pipelines, checked
 against this one — not just asserted, actually tested where that's possible:
 
-1. **Leakage is the #1 silent killer.** Verified, not assumed: `src/leakage_check.py`
+1. **Leakage is the #1 silent killer.** Verified, not assumed: `src/engine/leakage_check.py`
    rebuilds every feature (own + macro) from data truncated at several cutoff
    dates and confirms each cutoff's last row is bit-for-bit identical to that
    date's row computed from the full history. If truncating the future ever
-   changed a past feature value, that would be leakage. Run: `python src/leakage_check.py`
+   changed a past feature value, that would be leakage. Run: `python src/engine/leakage_check.py`
    — currently passes for all three tickers, both feature families.
 2. **Never shuffle time series data.** Already true throughout: `TimeSeriesSplit`
    for hyperparameter CV, a strictly chronological split for the final held-out
@@ -166,7 +184,7 @@ against this one — not just asserted, actually tested where that's possible:
    project (see "What it actually predicts" above) — targets are `pct_change`,
    never raw price.
 4. **Always compare against a dumb baseline — and this one bit us.** Added a
-   `baseline_persistence` candidate (`src/baselines.py`: "tomorrow repeats
+   `baseline_persistence` candidate (`src/engine/baselines.py`: "tomorrow repeats
    today's direction/return") alongside the existing zero-return/majority-class
    floors. It was initially *excluded* from ever winning the model-selection
    step, same as the other baselines — until checking revealed it actually
@@ -326,8 +344,8 @@ intraday price action from earlier the same day — useful for a running estimat
 throughout the trading session.
 
 ```bash
-python src/train_intraday.py     # trains the same-day-close model (run occasionally, e.g. weekly)
-python src/predict_intraday.py   # run any time 9:30am-4:00pm ET for a live estimate of today's close
+python src/engine/train_intraday.py     # trains the same-day-close model (run occasionally, e.g. weekly)
+python src/engine/predict_intraday.py   # run any time 9:30am-4:00pm ET for a live estimate of today's close
 ```
 
 **How it works:** Yahoo Finance only retains 5-minute bars for 60 days but hourly
@@ -362,7 +380,7 @@ compute, and expertise report hit rates around 52-58% on their best signals
 a near risk-free money machine sitting in plain sight, which markets don't
 leave lying around.
 
-`src/long_horizon_drift.py` and `src/predict_long_horizon.py` answer a
+`src/engine/long_horizon_drift.py` and `src/engine/predict_long_horizon.py` answer a
 **different, much weaker question** that genuinely can hit 80%+: not "what
 will tomorrow's direction be," but "if you always bet UP and hold for N
 trading days, how often would that have worked historically?" A high hit
@@ -403,6 +421,112 @@ Read this carefully, not just the headline numbers:
 Net: 80-90% is achievable *as a number*, but only by predicting something
 much less useful than "will the stock go up tomorrow," and even that weaker
 claim's evidence is thinner than the headline percentage suggests.
+
+## How this compares to published research
+
+Before treating this project's ~50-58% ceiling as specific to its own
+methodology, it's worth checking what the broader field actually finds — not
+from memory, but by reading the papers. There turn out to be two very
+different tiers of published result:
+
+**Tier 1 — papers claiming 80-93%+ directional accuracy.** These are common:
+a Vietnamese-market LSTM at 93%, an S&P 500 study at 83.6%, Random Forest at
+91.3%, ANNs averaging 83.4% across G-7 indices. On the surface these make
+this project's numbers look mediocre.
+
+**Tier 2 — rigorous, walk-forward-validated studies converge almost exactly
+on this project's numbers.** A controlled comparison of 918 experiments
+across transformer, TCN, and LSTM architectures for financial forecasting,
+using proper walk-forward validation, found directional accuracy essentially
+flat at 50.08% — "no combination deviating meaningfully from 50%," across
+every model and horizon tested. A separate study found predictive accuracy
+normally distributed around a 52% mean. An LSTM on the Brazilian exchange
+topped out at 55.9%. SP500 (~52%), AAPL (~51%), and PLTR (~58%) in this
+project land right inside that same band.
+
+**Why the gap between tiers — checked directly, not assumed**: the Tier 1
+papers tend to have exactly the flaws this project was built to avoid.
+Random (non-time-series) train/test splits are a documented, common source
+of leakage in financial ML papers — precisely what `TimeSeriesSplit` and
+chronological splitting throughout `train.py` prevent, and what
+`leakage_check.py` *verifies* rather than assumes. LSTM is repeatedly flagged
+in the literature as unstable and overfitting-prone on financial data ("as
+epoch increases, training accuracy improves, but validation accuracy stays
+constant"); one widely-cited headline result (R² = 0.997) is called out by
+reviewers as a red flag, not a success — a near-perfect fit on stock data
+usually means the model is trivially tracking yesterday's price *level*, the
+exact trap this project avoided from its first design decision (predict
+returns, not price levels — see "What it actually predicts" above). And
+backtest-to-live-trading failures are broadly attributed to unrealistic
+execution assumptions (no slippage, perfect fills) and no cost adjustment —
+exactly why `backtest_dates.py`'s transaction-cost reality check exists, and
+exactly why it's shown real, uncomfortable negative numbers here (AAPL net-negative
+across multiple checked windows this session).
+
+**Where real hedge funds fit in**: Renaissance Technologies' Medallion Fund
+returns roughly 66% gross annually — but that's *return*, not *directional
+accuracy*, earned through massive diversification and leverage across
+probably thousands of individually weak (~51-55%) signals, not high-confidence
+single-stock calls. That's a fundamentally different strategy than "predict
+AAPL's direction tomorrow with high accuracy," and it's the strongest
+available evidence that professional practice treats a thin, diversified
+edge — not a strong single-name signal — as the realistic path to profit.
+
+**Conclusion**: this project's results aren't a sign of a weaker
+implementation. They match the most rigorously validated published findings,
+and by several concrete measures (leakage verification, walk-forward
+validation, cost-adjusted reality checking, an eligible-to-win dumb baseline)
+this pipeline is more methodologically careful than a meaningful share of the
+literature claiming much higher numbers.
+
+Sources: [How effective is machine learning in stock market predictions? (PMC)](https://pmc.ncbi.nlm.nih.gov/articles/PMC10826674/) ·
+[A Controlled Comparison of Deep Learning Architectures for Multi-Horizon Financial Forecasting: 918 Experiments](https://arxiv.org/pdf/2603.16886) ·
+[Validating Weak-form Market Efficiency in US Stock Markets with Trend Deterministic Price Data and ML](https://arxiv.org/pdf/1909.05151) ·
+[Applying machine learning algorithms to predict the stock price trend — Vietnam (Nature)](https://www.nature.com/articles/s41599-024-02807-x) ·
+[Over-Fit or Not: That is the Question (Springer)](https://link.springer.com/chapter/10.1007/978-981-96-7742-9_26) ·
+[Renaissance Tech and Two Sigma lead 2024 quant gains (Hedgeweek)](https://www.hedgeweek.com/renaissance-tech-and-two-sigma-lead-2024-quant-gains/) ·
+[Common Backtesting Mistakes — Why Strategies Fail in Live Trading (Gainium)](https://gainium.io/blog/common-backtesting-problems) ·
+[Why 90% of Profitable Backtests Are Statistically Invalid (Medium)](https://daviddtech.medium.com/the-three-deadly-sins-of-backtesting-overfitting-look-ahead-bias-and-p-hacking-a68c6345e668)
+
+## Descriptive ticker comparison (Part 2)
+
+`src/comparison/compare_tickers.py` is Part 2 of the project: a single,
+neutral, side-by-side table comparing SP500/AAPL/PLTR on the numbers that
+actually matter, all pulled from Part 1's own outputs — it trains nothing new.
+
+```
+                       held_out_test_rmse   held_out_test_balanced_accuracy   recent_accuracy   recent_net_bps_per_trade   long_horizon_call
+SP500                  0.0104                0.5209                          0.4333            +8.1                       UP over 2 months (86.6% OOS)
+AAPL                   0.0193                0.5110                          0.5000            -23.8                      UP over 6 months (97.6% OOS, ~1 sample)
+PLTR                   0.0394                0.5806                          0.5333            +29.9                      none reliable
+```
+
+Three different numbers, three different meanings, deliberately kept
+separate rather than blended into one score:
+
+- **`held_out_test_*`** — the most trustworthy number (hundreds of days),
+  freshly re-evaluated against each ticker's actual deployed model.
+- **`recent_*`** — the last 30 trading days. Small sample, genuinely noisy
+  (see the standard-error math earlier in this README) — don't read a
+  30-day swing as the model getting better or worse.
+- **`long_horizon_*`** — a *different, much weaker* claim (buy-and-hold
+  drift over months, not day-to-day prediction; see "The 80-90% question").
+  Blending this in with the daily numbers would be comparing two different
+  questions as if they were one.
+
+**Why this exists, and why it stops exactly here**: a user asked this
+project to "give advice for which stocks we should invest in." That's
+personalized investment advice, which this project does not provide — not as
+a policy choice that could be relaxed, but because it isn't something to
+give regardless of how the request is framed. What *is* useful and honest is
+letting someone see the same backtested numbers the rest of this README
+already reports, side by side instead of scattered across sections. The
+table above is exactly that and nothing more: it does not rank tickers by
+"best," does not output a buy/sell/hold call, and every run reprints the
+same disclaimer before and after the table. If a ticker looks better on one
+row here, that is a historical statistic, not a forecast, and specifically
+not a recommendation — the whole rest of this README is the explanation of
+why that distinction actually matters here, not boilerplate.
 
 ## Extending this
 

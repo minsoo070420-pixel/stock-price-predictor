@@ -1,6 +1,6 @@
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent  # src/engine/config.py -> project root
 DATA_DIR = ROOT / "data"
 MODELS_DIR = ROOT / "models"
 REPORTS_DIR = ROOT / "reports"
