@@ -50,6 +50,34 @@ def hit_rate(close: pd.Series, horizon: int) -> tuple[float, int]:
     return float((fwd_return > 0).mean()), n
 
 
+def individual_window_instances(name: str, horizon_label: str, horizon: int) -> pd.DataFrame:
+    """Concrete, non-overlapping historical instances of 'predict UP, hold for
+    `horizon` trading days' in the held-out test period -- actual dates and
+    prices, not just the aggregate hit-rate percentage. Non-overlapping (unlike
+    the rolling hit_rate() above) so each row is a genuinely independent
+    instance, not 251 copies of the same window shifted by a day."""
+    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
+    close = df["Close"]
+    n = len(close)
+    split = int(n * (1 - TEST_FRACTION))
+    test_close = close.iloc[split:]
+
+    rows = []
+    i = 0
+    while i + horizon < len(test_close):
+        start_date, end_date = test_close.index[i], test_close.index[i + horizon]
+        start_price, end_price = float(test_close.iloc[i]), float(test_close.iloc[i + horizon])
+        ret = end_price / start_price - 1
+        rows.append({
+            "ticker": name, "horizon": horizon_label,
+            "start_date": start_date.date(), "end_date": end_date.date(),
+            "start_price": start_price, "end_price": end_price,
+            "return_pct": ret * 100, "predicted": "UP", "correct": ret > 0,
+        })
+        i += horizon
+    return pd.DataFrame(rows)
+
+
 def analyze_ticker(name: str) -> pd.DataFrame:
     df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
     close = df["Close"]
@@ -69,6 +97,32 @@ def analyze_ticker(name: str) -> pd.DataFrame:
             "reliable": test_n >= MIN_TEST_WINDOWS,
         })
     return pd.DataFrame(rows)
+
+
+VERIFY_HORIZONS = {  # the specific horizons checked against actual history below
+    "1 month": 21, "3 months": 63, "6 months": 126, "9 months": 189, "1 year": 252,
+}
+
+
+def verify_predictions():
+    """Check the 1/3/6/9/12-month 'always predict UP' calls against what
+    ACTUALLY happened, instance by instance, in the held-out test period."""
+    print(f"\n{'='*90}\nVerifying 1/3/6/9/12-month predictions against actual history "
+          f"(non-overlapping, held-out test period)\n{'='*90}")
+    for name in TICKERS.values():
+        print(f"\n--- {name} ---")
+        for label, h in VERIFY_HORIZONS.items():
+            instances = individual_window_instances(name, label, h)
+            if instances.empty:
+                print(f"  {label:<10}: no complete non-overlapping window in the test period (too short)")
+                continue
+            n_correct = int(instances["correct"].sum())
+            n_total = len(instances)
+            print(f"  {label:<10}: {n_correct}/{n_total} correct")
+            for _, r in instances.iterrows():
+                mark = "correct" if r["correct"] else "WRONG"
+                print(f"      {r['start_date']} (${r['start_price']:.2f}) -> {r['end_date']} "
+                      f"(${r['end_price']:.2f})  {r['return_pct']:+.1f}%  predicted UP -> {mark}")
 
 
 def main():
@@ -101,6 +155,8 @@ def main():
     out_path = REPORTS_DIR / "long_horizon_drift.csv"
     result.to_csv(out_path, index=False)
     print(f"\nSaved full table to {out_path}")
+
+    verify_predictions()
 
 
 if __name__ == "__main__":
