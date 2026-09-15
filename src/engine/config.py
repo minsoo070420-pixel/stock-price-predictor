@@ -51,10 +51,14 @@ FEATURE_SELECT_TOP_K = 20      # when a feature set exceeds this, keep only the 
 # Classifiers were found to sit almost permanently just above the default 0.50
 # cutoff (learning the training data's ~56% up-day base rate rather than a
 # strong daily signal), so they defaulted to predicting UP nearly every day.
-# Requiring the "up" probability to clear 0.51 -- a modest, fixed 1-point
+# Requiring the "up" probability to clear 0.52 -- a modest, fixed 2-point
 # margin, not fit to any specific test window -- makes that tie-break a
 # deliberate choice instead of an accident of where the base rate happens to sit.
-CLASSIFICATION_THRESHOLD = 0.51
+# (Raised from a 1-point margin (0.51) to 2 points (0.52); the structural fix
+# -- class_weight="balanced" plus balanced-accuracy scoring, see README -- is
+# what actually corrected the always-UP bias, so this margin is a small extra
+# safety buffer on top of that, not the primary fix.)
+CLASSIFICATION_THRESHOLD = 0.52
 
 # Rough round-trip transaction cost assumptions (spread + slippage, in basis
 # points), used only to sanity-check whether backtested directional calls

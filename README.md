@@ -121,7 +121,7 @@ python src/comparison/compare_tickers.py   # Part 2: neutral side-by-side stats 
    classifier for a ticker can end up using different feature sets and different selected columns;
    exactly which columns each saved model expects is recorded in `models/{ticker}_features.json`.
 
-### The classification decision threshold, and why it's 0.51 not 0.50
+### The classification decision threshold, and why it's not 0.50
 
 Backtesting turned up something concrete: SP500's classifier predicted "UP" on
 21 out of 21 days over a real month (8/13-9/11), because its predicted
@@ -143,6 +143,18 @@ window. Measured effect: it flipped only 1 of SP500's 21 calls that month
 noise for n=21) — which itself is an honest finding: the bias is baked in
 deeply enough that a 1-point nudge can't meaningfully counter it. The
 structural fix that actually worked is below.
+
+**Update**: the margin was later raised from 0.51 to `CLASSIFICATION_THRESHOLD
+= 0.52` (a 2-point shift off 50/50, still fixed and not fit to any test
+window). This is a small extra safety buffer, not a re-attempt at the fix
+above — the structural class-weighting fix below is what actually corrected
+the always-UP bias; this threshold is a secondary, modest tightening on top
+of it. Because the threshold feeds directly into model selection (classifiers
+are scored on balanced accuracy *at this threshold*, not at 0.50), changing
+it required retraining all 8 tickers, and did shift several: MSFT, GOOGL,
+AMZN, NVDA, and META all moved from the persistence baseline to a tuned
+`HistGradientBoosting` classifier at 0.52 where some had picked persistence
+at 0.51 — a real, threshold-sensitive change in what wins, not noise.
 
 ### The structural fix: class-weighted training + balanced-accuracy selection
 
