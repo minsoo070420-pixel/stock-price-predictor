@@ -26,6 +26,12 @@ def _download(symbol: str, period: str, interval: str) -> pd.DataFrame:
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     df.index.name = "Date"
+    # Yahoo occasionally returns a trailing row with Volume populated but
+    # OHLC still NaN -- a not-yet-fully-settled bar for that symbol (seen for
+    # individual equities minutes to hours after close, even when the index
+    # itself already shows a settled value for the same day). Drop it here,
+    # at the source, so no downstream consumer has to defend against it individually.
+    df = df.dropna(subset=["Close"])
     return df
 
 

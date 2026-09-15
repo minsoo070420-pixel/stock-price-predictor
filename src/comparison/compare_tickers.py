@@ -1,4 +1,5 @@
-"""Part 2: Descriptive comparison across SP500 / AAPL / PLTR.
+"""Part 2: Descriptive comparison across all tickers configured in
+src/engine/config.py's TICKERS (SP500, AAPL, PLTR, MSFT, GOOGL, AMZN, NVDA, META).
 
 THIS IS NOT INVESTMENT ADVICE AND DOES NOT RECOMMEND ANY TRADE. It reports
 historical, backtested statistics about how each ticker's model has performed
@@ -28,7 +29,7 @@ from backtest_dates import backtest_ticker
 from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TEST_FRACTION, TICKERS
 from features import FEATURE_COLUMNS, make_dataset
 from fetch_data import fetch_all, fetch_macro_all
-from long_horizon_drift import analyze_ticker
+from long_horizon_drift import analyze_ticker, most_recent_completed_window
 from macro_features import build_macro_features
 from predict_long_horizon import LONG_HORIZON_CALLS
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
@@ -183,6 +184,16 @@ def main():
     print("\nReminder: overlapping windows inflate apparent sample size -- '~N indep.' is the honest count.")
 
     print(f"\n{'-'*78}")
+    print("Verification: 'run the algorithm on data from 3 months ago' -- the single most")
+    print("recent completed 3-month window (price 63 trading days ago vs. today), per ticker.")
+    print("One instance each, not a statistic -- an anecdote, not a validated rate.\n")
+    recent3mo = [most_recent_completed_window(name, "3 months", 63) for name in TICKERS.values()]
+    recent3mo_df = pd.DataFrame(recent3mo).set_index("ticker")
+    print(recent3mo_df.to_string())
+    n_correct_3mo = sum(1 for r in recent3mo if r.get("correct"))
+    print(f"\n{n_correct_3mo}/{len(recent3mo)} tickers were actually UP over their most recent 3-month window.")
+
+    print(f"\n{'-'*78}")
     print("Raw fundamental data -- purely descriptive, no verdict attached, nothing")
     print("here is labeled 'cheap' or 'expensive'. SP500 is an index, not a company,")
     print("so most fields are structurally n/a for it, not a missing data point.\n")
@@ -200,9 +211,11 @@ def main():
     result.to_csv(out_path)
     horizon_out_path = REPORTS_DIR / "four_horizon_comparison.csv"
     hit_rates.to_csv(horizon_out_path)
+    recent3mo_out_path = REPORTS_DIR / "recent_3month_check.csv"
+    recent3mo_df.to_csv(recent3mo_out_path)
     fund_out_path = REPORTS_DIR / "fundamentals_comparison.csv"
     fundamentals.to_csv(fund_out_path)
-    print(f"\nSaved to {out_path}, {horizon_out_path}, and {fund_out_path}")
+    print(f"\nSaved to {out_path}, {horizon_out_path}, {recent3mo_out_path}, and {fund_out_path}")
     print(f"\n{DISCLAIMER}")
 
 

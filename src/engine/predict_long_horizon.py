@@ -16,12 +16,15 @@ from fetch_data import fetch_all
 
 # Hand-picked from long_horizon_drift.py's output: the shortest horizon that
 # reliably (>=20 overlapping test windows) crossed an 80% out-of-sample hit
-# rate for that ticker. PLTR has no entry on purpose -- see the module
-# docstring in long_horizon_drift.py: no horizon reliably reached 80%
-# out-of-sample for PLTR, so making a call here would be fabricated confidence.
+# rate for that ticker. PLTR, META, and MSFT have no entry on purpose -- see
+# the module docstring in long_horizon_drift.py: no horizon reliably reached
+# 80% out-of-sample for them, so making a call here would be fabricated confidence.
 LONG_HORIZON_CALLS = {
     "SP500": {"horizon_label": "2 months", "horizon_days": 42, "oos_hit_rate": 0.866, "independent_n": 7},
     "AAPL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.976, "independent_n": 1},
+    "AMZN": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.812, "independent_n": 1},
+    "GOOGL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.984, "independent_n": 1},
+    "NVDA": {"horizon_label": "3 months", "horizon_days": 63, "oos_hit_rate": 0.815, "independent_n": 4},
 }
 
 

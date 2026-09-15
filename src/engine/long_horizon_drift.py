@@ -78,6 +78,29 @@ def individual_window_instances(name: str, horizon_label: str, horizon: int) -> 
     return pd.DataFrame(rows)
 
 
+def most_recent_completed_window(name: str, horizon_label: str, horizon: int) -> dict:
+    """The single most recent completed window: price `horizon` trading days
+    ago vs. today's price. This directly answers 'what would the algorithm
+    have said if run `horizon` trading days ago, and was it right' -- using
+    the FULL price history (not just the held-out test slice), since the
+    point is the most recent real instance, not an in-sample/out-of-sample
+    split. One instance, not a statistic -- read it as an anecdote, not
+    evidence of a rate."""
+    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
+    close = df["Close"].dropna()  # defends against a stale CSV with a not-yet-settled trailing row
+    if len(close) <= horizon:
+        return {"ticker": name, "horizon": horizon_label, "note": "not enough history"}
+    start_date, end_date = close.index[-horizon - 1], close.index[-1]
+    start_price, end_price = float(close.iloc[-horizon - 1]), float(close.iloc[-1])
+    ret = end_price / start_price - 1
+    return {
+        "ticker": name, "horizon": horizon_label,
+        "start_date": start_date.date(), "end_date": end_date.date(),
+        "start_price": start_price, "end_price": end_price,
+        "return_pct": ret * 100, "predicted": "UP", "correct": ret > 0,
+    }
+
+
 def analyze_ticker(name: str) -> pd.DataFrame:
     df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
     close = df["Close"]

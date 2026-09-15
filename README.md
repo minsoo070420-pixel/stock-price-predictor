@@ -1,10 +1,20 @@
-# Daily Stock Prediction (S&P 500, AAPL, PLTR)
+# Daily Stock Prediction (S&P 500 + 7 large-caps)
 
 [![GitHub repo](https://img.shields.io/badge/GitHub-stock--price--predictor-181717?logo=github)](https://github.com/minsoo070420-pixel/stock-price-predictor)
 
-Predicts the next trading day's return/direction for the S&P 500 index (`^GSPC`),
-Apple (`AAPL`), and Palantir (`PLTR`) using classic ML on engineered technical
-features. No paid data or API keys required (uses `yfinance`).
+Predicts the next trading day's return/direction for `SP500` (`^GSPC`), `AAPL`,
+`PLTR`, `MSFT`, `GOOGL`, `AMZN`, `NVDA`, and `META` using classic ML on
+engineered technical features. No paid data or API keys required (uses `yfinance`).
+
+**A note on scope while reading this README**: the project started with just
+SP500/AAPL/PLTR, and most of the narrative sections below — the six-point ML
+checklist, the 80-90% question, the published-research comparison — were
+written and verified against those three specifically. MSFT, GOOGL, AMZN,
+NVDA, and META were added later, trained through the same pipeline, and
+independently leakage-checked (`leakage_check.py` passes for all eight), but
+weren't individually re-litigated through every prior finding. Treat the
+original three as the deeply-audited core and the other five as covered by
+the same methodology, not as separately re-proven case by case.
 
 ## Two pieces
 
@@ -15,12 +25,13 @@ The project is split into two clearly separated parts, each with its own job:
   there's no leakage, and backtests results. This is all of the work described
   in the rest of this README.
 - **`src/comparison/`** — Part 2, a neutral descriptive-statistics comparison
-  across the three tickers, built entirely from Part 1's own outputs. It
+  across all eight tickers, built entirely from Part 1's own outputs. It
   reports how each ticker's model has performed historically — held-out test
   accuracy, recent backtest accuracy, cost-adjusted returns, long-horizon
-  drift — side by side. **It does not train anything new, and it does not
-  recommend a trade.** See "Descriptive ticker comparison" below for why that
-  line matters and isn't just a formality.
+  drift, a live 3-month walk-forward check, raw fundamentals — side by side.
+  **It does not train anything new, and it does not recommend a trade.** See
+  "Descriptive ticker comparison" below for why that line matters and isn't
+  just a formality.
 
 ## What it actually predicts
 
@@ -491,8 +502,9 @@ Sources: [How effective is machine learning in stock market predictions? (PMC)](
 ## Descriptive ticker comparison (Part 2)
 
 `src/comparison/compare_tickers.py` is Part 2 of the project: a single,
-neutral, side-by-side table comparing SP500/AAPL/PLTR on the numbers that
+neutral, side-by-side table comparing all eight tickers on the numbers that
 actually matter, all pulled from Part 1's own outputs — it trains nothing new.
+(Example tables below show a subset of rows for brevity, not the full eight.)
 
 ```
                        held_out_test_rmse   held_out_test_balanced_accuracy   recent_accuracy   recent_net_bps_per_trade   long_horizon_call
@@ -537,6 +549,30 @@ that specific framing was declined for the same reason as the ticker ranking
 above: it's investment advice regardless of which horizons back it. What's
 shown here is the same descriptive statistic, at the four horizons asked
 for, with nothing built on top of it that says what to do with it.
+
+The tool also prints (and saves to `reports/recent_3month_check.csv`) a
+direct answer to "run the algorithm on data from 3 months ago": the single
+most recent completed 3-month window for each ticker — price 63 trading days
+ago vs. today — checked against what actually happened:
+
+```
+         start_date    end_date  start_price  end_price  return_pct predicted  correct
+SP500    2026-06-12  2026-09-14     7,431.46    7,619.98      +2.54%        UP     True
+AAPL     2026-06-11  2026-09-11       295.38      332.27     +12.49%        UP     True
+GOOGL    2026-06-11  2026-09-11       357.54      338.50      -5.33%        UP    False
+...      7/8 tickers were actually UP over their most recent 3-month window
+```
+
+This is **one instance per ticker, not a statistic** — read it as an anecdote
+about what just happened, not as validated evidence of a rate; the aggregate
+hit-rate table above it is the actual evidence, thin as that evidence is at
+these horizons. Building this surfaced a real data-quality bug worth noting:
+Yahoo Finance occasionally returns a trailing row with `Volume` populated but
+`Close`/`Open`/`High`/`Low` still `NaN` — a not-yet-settled bar for an
+individual stock, sometimes hours after that same day's index-level close
+had already posted. `fetch_data.py` now drops any row with a `NaN` close at
+the source, so every downstream consumer is protected rather than each one
+needing its own defense against it.
 
 The tool also prints raw fundamental data (`reports/fundamentals_comparison.csv`)
 — trailing/forward P/E, market cap, price-to-book, dividend yield, beta,

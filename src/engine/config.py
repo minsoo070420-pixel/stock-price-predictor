@@ -10,6 +10,11 @@ TICKERS = {
     "^GSPC": "SP500",
     "AAPL": "AAPL",
     "PLTR": "PLTR",
+    "MSFT": "MSFT",
+    "GOOGL": "GOOGL",
+    "AMZN": "AMZN",
+    "NVDA": "NVDA",
+    "META": "META",
 }
 
 # Cross-market / macro tickers used as extra features (shared across all three
@@ -61,6 +66,11 @@ TRANSACTION_COST_BPS = {
     "SP500": 2,
     "AAPL": 3,
     "PLTR": 8,
+    "MSFT": 2,
+    "GOOGL": 3,
+    "AMZN": 3,
+    "NVDA": 3,
+    "META": 3,
 }
 
 HISTORY_PERIOD = "10y"   # how much history to download
