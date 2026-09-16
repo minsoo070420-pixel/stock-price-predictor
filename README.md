@@ -77,21 +77,32 @@ python src/comparison/compare_tickers.py   # Part 2: neutral side-by-side stats 
 2. **`src/engine/features.py`** — builds ~20 "own" features per day from *only* past data (no
    look-ahead): lagged returns, SMA ratios (5/10/20/50d), rolling volatility, RSI(14), MACD,
    Bollinger Band position/width, volume change, day-of-week.
-3. **`src/engine/macro_features.py`** — builds 26 cross-market/"world" features shared across all
-   three tickers: VIX level/z-score (S&P 500's own options-implied vol), the VIX/VIX3M term
-   structure and VXN (Nasdaq-100 implied vol) for more implied-vol signal, 10Y Treasury yield
-   level/change, the 10Y-vs-13-week yield curve slope (recession-risk signal), dollar index
-   return, oil/gold returns, Dow/Nasdaq/Russell 2000 returns, Nikkei/FTSE/DAX returns (how Asia
-   and Europe already traded before the US session opens), Bitcoin return/volatility (trades
-   weekends, so it reflects global news equities can't price in until Monday), a credit-stress
-   proxy (high-yield bond ETF return minus Treasury bond ETF return), and QQQ return (tech-sector
-   proxy). All same-day (close of day *t*), which is valid information for predicting day *t+1*
-   — no look-ahead.
+3. **`src/engine/macro_features.py`** — builds 24 cross-market/"world" features shared across all
+   tickers: VIX level/z-score (S&P 500's own options-implied vol), VXN (Nasdaq-100 implied vol)
+   for more implied-vol signal, 10Y Treasury yield level/change, the 10Y-vs-13-week yield curve
+   slope (recession-risk signal), dollar index return, oil/gold returns, Dow/Nasdaq/Russell 2000
+   returns, Nikkei/FTSE/DAX returns (how Asia and Europe already traded before the US session
+   opens), Bitcoin return/volatility (trades weekends, so it reflects global news equities can't
+   price in until Monday), a credit-stress proxy (high-yield bond ETF return minus Treasury bond
+   ETF return), and QQQ return (tech-sector proxy). All same-day (close of day *t*), which is
+   valid information for predicting day *t+1* — no look-ahead.
+
+   **Temporarily missing**: the VIX/VIX3M term structure feature. On 2026-09-16, `^VIX3M`'s Yahoo
+   feed started returning exactly 1 row (today's date only) regardless of period or retries,
+   confirmed broken via two independent yfinance access paths — a genuine provider-side outage,
+   not a bug in this code. It corrupted the cached history (data files are gitignored, so there
+   was no backup to restore from) and collapsed the entire feature table for every ticker on the
+   next backtest run, since a single all-NaN macro column makes `make_dataset`'s `dropna` remove
+   every row. Fixed two ways: (1) `fetch_data.py` now refuses to overwrite a cached file with a
+   fresh fetch that's suspiciously much shorter (`_save_with_outage_guard`) — this specific
+   failure mode won't recur even after ^VIX3M's data resumes normally, for this or any other
+   ticker; (2) the term-structure feature itself is commented out (not deleted) in `config.py`
+   and `macro_features.py` until the feed recovers. Re-enabling it is a two-line uncomment.
 4. **`src/engine/implied_vol.py`** — live single-stock options-implied-vol/skew snapshot for AAPL/PLTR
    (see "Options-implied volatility" below for why this is live-only, not trained).
 5. **`src/engine/train.py`** — chronological (not shuffled) train/test split, last ~15% of days held out
    as the final, untouched evaluation set. For each ticker, trains and compares two feature sets —
-   **baseline** (own features only, 23) and **enhanced** (own + macro/world, 49) — and for each,
+   **baseline** (own features only, 23) and **enhanced** (own + macro/world, 47) — and for each,
    runs the optimization pipeline described below. Saves a test-period actual-vs-predicted chart to
    `reports/`, and full metrics to `reports/model_comparison.csv`.
 6. **`src/engine/predict.py`** — recomputes features on the latest available day and prints tomorrow's

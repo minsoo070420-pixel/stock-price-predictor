@@ -38,8 +38,12 @@ MACRO_TICKERS = {
     "^GDAXI": "DAX",   # Germany -- ditto
     "BTC-USD": "BTC",  # trades 24/7 incl. weekends -- captures risk sentiment/news
                        # equities can't price in until the next session
-    "^VIX3M": "VIX3M", # 3-month S&P 500 implied vol -- vs. ^VIX (30-day) gives the
-                       # vol term structure (contango/backwardation is a known stress signal)
+    # "^VIX3M": "VIX3M",  # TEMPORARILY DISABLED 2026-09-16: Yahoo/CBOE's feed for this
+                       # symbol is returning only 1 row (today's date) regardless of period
+                       # or retries -- a live provider-side outage, confirmed via both
+                       # yf.download and Ticker.history. Re-enable in MACRO_TICKERS and
+                       # macro_features.py (vix_term_structure/_chg_1d) once it recovers;
+                       # check with: yf.download("^VIX3M", period="1y") and expect ~250 rows.
     "^VXN": "VXN",     # Nasdaq-100 30-day implied vol -- forward-looking vol proxy
                        # relevant to AAPL/PLTR specifically, not just the broad market
 }
