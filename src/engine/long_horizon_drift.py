@@ -125,16 +125,46 @@ def analyze_ticker(name: str) -> pd.DataFrame:
 EXPECTED_RETURN_HORIZONS = {"3 months": 63, "6 months": 126, "9 months": 189, "12 months": 252}
 
 
+def _point_estimators(fwd: pd.Series) -> dict[str, float]:
+    """Several candidate point estimates from the same historical sample of
+    forward returns, computed the same no-lookahead way -- compared honestly
+    rather than assuming one wins.
+
+    Why these specific four: the reported metric is MAE, and minimising MAE
+    means forecasting the MEDIAN, not the mean (minimising RMSE forecasts the
+    mean instead) -- a standard forecasting-theory result, not a guess. Financial
+    return distributions are also fat-tailed (a few extreme historical windows
+    can drag a raw mean far from the typical case, which is exactly what was
+    seen with PLTR/NVDA's inflated averages), so a trimmed mean and a Tukey
+    IQR-winsorized mean -- both standard Kaggle-competition techniques for
+    outlier-heavy targets -- are included as robustness alternatives to the mean."""
+    if len(fwd) == 0:
+        return {}
+    mean = float(fwd.mean())
+    median = float(fwd.median())
+    if len(fwd) >= 10:
+        sorted_fwd = fwd.sort_values()
+        lo, hi = int(len(sorted_fwd) * 0.1), int(len(sorted_fwd) * 0.9)
+        trimmed_mean = float(sorted_fwd.iloc[lo:hi].mean())
+    else:
+        trimmed_mean = mean
+    q1, q3 = fwd.quantile(0.25), fwd.quantile(0.75)
+    iqr = q3 - q1
+    winsorized_mean = float(fwd.clip(q1 - 1.5 * iqr, q3 + 1.5 * iqr).mean())
+    return {
+        "mean": mean, "median": median,
+        "trimmed_mean_10pct": trimmed_mean, "winsorized_mean_iqr": winsorized_mean,
+    }
+
+
 def expected_vs_actual_return(name: str, anchor_days_ago: int = 252) -> pd.DataFrame:
     """Walk-forward, no-lookahead check: using ONLY price history available
     strictly BEFORE the anchor date (`anchor_days_ago` trading days back --
-    ~1 year, by default), compute the historical AVERAGE forward return at
-    3/6/9/12 months as "the algorithm's expectation" -- then compare to what
-    ACTUALLY happened over that exact same window, since every one of these
-    windows (even the 12-month one, which lands on today) is now fully
-    realized. This is the same "always bet the drift" algorithm as the rest
-    of this module, just reporting the expected magnitude (mean historical
-    return) instead of only the binary hit rate."""
+    ~1 year, by default), compute several candidate point estimates of the
+    historical forward return at 3/6/9/12 months (see _point_estimators) --
+    then compare each to what ACTUALLY happened over that exact same window,
+    since every one of these windows (even the 12-month one, which lands on
+    today) is now fully realized. One row per (horizon, estimator)."""
     df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
     close = df["Close"]
     n = len(close)
@@ -149,30 +179,31 @@ def expected_vs_actual_return(name: str, anchor_days_ago: int = 252) -> pd.DataF
     rows = []
     for label, h in EXPECTED_RETURN_HORIZONS.items():
         fwd = (history_before_anchor.shift(-h) / history_before_anchor - 1).dropna()
-        expected_return = float(fwd.mean()) if len(fwd) > 0 else None
+        estimators = _point_estimators(fwd)
 
         target_idx = anchor_idx + h
-        if target_idx >= n or expected_return is None:
+        target_date = close.index[target_idx] if target_idx < n else None
+        target_price = float(close.iloc[target_idx]) if target_idx < n else None
+        actual_return = (target_price / anchor_price - 1) if target_price is not None else None
+
+        if not estimators or actual_return is None:
             rows.append({
-                "ticker": name, "horizon": label, "anchor_date": anchor_date.date(),
+                "ticker": name, "horizon": label, "estimator": None, "anchor_date": anchor_date.date(),
                 "anchor_price": anchor_price, "expected_return_pct": None,
                 "expected_n_samples": len(fwd), "target_date": None, "target_price": None,
                 "actual_return_pct": None, "error_pct_points": None, "direction_match": None,
             })
             continue
 
-        target_date = close.index[target_idx]
-        target_price = float(close.iloc[target_idx])
-        actual_return = target_price / anchor_price - 1
-
-        rows.append({
-            "ticker": name, "horizon": label, "anchor_date": anchor_date.date(),
-            "anchor_price": anchor_price, "expected_return_pct": expected_return * 100,
-            "expected_n_samples": len(fwd), "target_date": target_date.date(),
-            "target_price": target_price, "actual_return_pct": actual_return * 100,
-            "error_pct_points": (actual_return - expected_return) * 100,
-            "direction_match": (expected_return > 0) == (actual_return > 0),
-        })
+        for est_name, expected_return in estimators.items():
+            rows.append({
+                "ticker": name, "horizon": label, "estimator": est_name, "anchor_date": anchor_date.date(),
+                "anchor_price": anchor_price, "expected_return_pct": expected_return * 100,
+                "expected_n_samples": len(fwd), "target_date": target_date.date(),
+                "target_price": target_price, "actual_return_pct": actual_return * 100,
+                "error_pct_points": (actual_return - expected_return) * 100,
+                "direction_match": (expected_return > 0) == (actual_return > 0),
+            })
     return pd.DataFrame(rows)
 
 
@@ -204,7 +235,9 @@ def verify_predictions():
 
 def run_expected_vs_actual(anchor_days_ago: int = 252):
     """Print + save the walk-forward 'expect the return using last year's
-    data, then check against what actually happened' table for every ticker."""
+    data, then check against what actually happened' table for every ticker,
+    comparing four candidate point estimators (see _point_estimators) rather
+    than assuming the raw mean is the right one to report."""
     print(f"\n{'='*90}\nExpected vs. actual return at 3/6/9/12 months, using ONLY data available "
           f"~{anchor_days_ago} trading days ago (no lookahead)\n{'='*90}")
     all_rows = []
@@ -213,31 +246,41 @@ def run_expected_vs_actual(anchor_days_ago: int = 252):
         if r.empty:
             print(f"\n--- {name}: not enough pre-anchor history ---")
             continue
-        print(f"\n--- {name} (anchor: {r['anchor_date'].iloc[0]}, ${r['anchor_price'].iloc[0]:.2f}) ---")
-        for _, row in r.iterrows():
-            if pd.isna(row["actual_return_pct"]):
-                print(f"  {row['horizon']:<10}: target date not yet reached")
-                continue
-            mark = "direction matched" if row["direction_match"] else "direction WRONG"
-            print(f"  {row['horizon']:<10}: expected {row['expected_return_pct']:+.2f}% "
-                  f"(avg of {int(row['expected_n_samples'])} historical windows before anchor)  |  "
-                  f"actual {row['actual_return_pct']:+.2f}% by {row['target_date']}  |  "
-                  f"error {row['error_pct_points']:+.2f} pts  |  {mark}")
         all_rows.append(r)
 
-    if all_rows:
-        combined = pd.concat(all_rows, ignore_index=True)
-        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        out_path = REPORTS_DIR / "expected_vs_actual_return.csv"
-        combined.to_csv(out_path, index=False)
-        print(f"\nSaved to {out_path}")
+    if not all_rows:
+        return
 
-        scored = combined.dropna(subset=["direction_match"])
-        if not scored.empty:
-            print(f"\nOverall direction match: {int(scored['direction_match'].sum())}/{len(scored)} "
-                  f"({scored['direction_match'].mean():.1%})")
-            mae = scored["error_pct_points"].abs().mean()
-            print(f"Mean absolute error (expected vs. actual return): {mae:.2f} percentage points")
+    combined = pd.concat(all_rows, ignore_index=True)
+    scored = combined.dropna(subset=["direction_match"])
+
+    print("\nMean absolute error by estimator (lower is better), across all tickers/horizons:")
+    summary = scored.groupby("estimator").agg(
+        mae_pct_points=("error_pct_points", lambda s: s.abs().mean()),
+        direction_match_rate=("direction_match", "mean"),
+        n=("error_pct_points", "size"),
+    ).sort_values("mae_pct_points")
+    print(summary.to_string())
+    best_estimator = summary.index[0]
+    print(f"\nBest estimator by MAE: '{best_estimator}' "
+          f"({summary.loc[best_estimator, 'mae_pct_points']:.2f} pts vs. "
+          f"{summary.loc['mean', 'mae_pct_points']:.2f} pts for the raw mean)")
+
+    print(f"\nPer-ticker detail using '{best_estimator}':")
+    best = scored[scored["estimator"] == best_estimator]
+    for name, g in best.groupby("ticker"):
+        anchor_date = g["anchor_date"].iloc[0]
+        print(f"\n--- {name} (anchor: {anchor_date}) ---")
+        for _, row in g.iterrows():
+            mark = "direction matched" if row["direction_match"] else "direction WRONG"
+            print(f"  {row['horizon']:<10}: expected {row['expected_return_pct']:+.2f}%  |  "
+                  f"actual {row['actual_return_pct']:+.2f}% by {row['target_date']}  |  "
+                  f"error {row['error_pct_points']:+.2f} pts  |  {mark}")
+
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = REPORTS_DIR / "expected_vs_actual_return.csv"
+    combined.to_csv(out_path, index=False)
+    print(f"\nSaved full (all estimators) table to {out_path}")
 
 
 def main():
