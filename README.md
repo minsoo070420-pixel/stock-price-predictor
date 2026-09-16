@@ -456,6 +456,55 @@ Net: 80-90% is achievable *as a number*, but only by predicting something
 much less useful than "will the stock go up tomorrow," and even that weaker
 claim's evidence is thinner than the headline percentage suggests.
 
+## Expected vs. actual return: using a year-old snapshot, checked against reality
+
+A natural follow-up to the hit-rate work above: instead of just "was the
+direction right," what if the algorithm had to commit to an actual expected
+*return*, and that commitment was checked against what really happened?
+`expected_vs_actual_return()` in `long_horizon_drift.py` does exactly that,
+walk-forward and with no lookahead:
+
+1. Pick an anchor ~1 year (252 trading days) back from today.
+2. Using **only price history strictly before that anchor date**, compute
+   the historical average forward return at 3/6/9/12 months — this is "what
+   the algorithm would have expected," formed with the same information that
+   would genuinely have been available at that point in time.
+3. Compare to the **actual** return realized over that exact window — fully
+   knowable now, since even the 12-month window ends today.
+
+Run: `python src/engine/long_horizon_drift.py` (prints this after the hit-rate
+tables; saved to `reports/expected_vs_actual_return.csv`). Actual results
+from a recent run, anchor ≈ 2025-09-11/12:
+
+| Ticker | 3mo error | 6mo error | 9mo error | 12mo error | Direction matched |
+|---|---|---|---|---|---|
+| SP500 | +1.4pts | -4.7pts | +4.9pts | +1.8pts | 4/4 |
+| AAPL | +14.1pts | -5.5pts | +4.4pts | +14.0pts | 4/4 |
+| GOOGL | +27.9pts | +15.6pts | +33.5pts | +23.1pts | 4/4 |
+| AMZN | -5.5pts | -22.3pts | -16.1pts | -17.2pts | 3/4 |
+| NVDA | -13.5pts | -34.6pts | -44.2pts | -66.8pts | 4/4 |
+| MSFT | -11.5pts | -34.9pts | -43.6pts | -28.9pts | 1/4 |
+| PLTR | -6.6pts | -50.2pts | -95.4pts | -104.1pts | 2/4 |
+| META | -20.6pts | -33.2pts | -47.9pts | -43.6pts | 0/4 |
+
+**Overall: 22/32 (68.8%) direction matches, but a mean absolute error of
+27.85 percentage points.** Read both numbers together, not separately —
+68.8% direction accuracy sounds like a real edge in isolation, but the
+average return estimate was off by nearly 28 points. PLTR's 9-month
+expectation (+73%, based on its explosive average historical window) landed
+next to an actual -22% — a 95-point miss while still technically getting
+"UP over 3 months" right elsewhere in the same ticker's row. META missed
+direction at all four horizons: its historical drift was positive, but this
+particular year was a real decline for the stock, and "expect the average of
+the past" has no way to see that coming.
+
+This is the sharpest illustration in this README of why a hit-rate
+percentage alone understates the risk: even the tickers with "4/4 direction
+matched" (SP500, AAPL, GOOGL, NVDA) still carried errors of 5 to 67
+percentage points on the actual number. Getting the sign right and getting
+the magnitude right are different claims, and this method is far better at
+the first than the second.
+
 ## How this compares to published research
 
 Before treating this project's ~50-58% ceiling as specific to its own
