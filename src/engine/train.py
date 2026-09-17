@@ -63,6 +63,7 @@ from config import (
     HYPERPARAM_CV_SPLITS,
     MODELS_DIR,
     RANDOM_STATE,
+    RECENCY_HALF_LIFE_TRADING_DAYS,
     REPORTS_DIR,
     TEST_FRACTION,
     TICKERS,
@@ -89,6 +90,16 @@ HGB_PARAM_DIST = {
 N_SEARCH_ITER = 10
 
 
+def recency_weights(n: int, half_life: int = RECENCY_HALF_LIFE_TRADING_DAYS) -> np.ndarray:
+    """Exponential recency weighting: the most recent training row gets
+    weight 1.0, a row `half_life` trading days older gets 0.5, one twice
+    that old gets 0.25, etc. Addresses non-stationarity -- markets in 2016
+    aren't guaranteed to behave like markets in 2026 -- without discarding
+    older data outright the way a hard lookback window would."""
+    age_in_days = np.arange(n)[::-1]
+    return 0.5 ** (age_in_days / half_life)
+
+
 def chrono_split(X, *ys, test_fraction=TEST_FRACTION):
     n_test = max(int(len(X) * test_fraction), 30)
     split = len(X) - n_test
@@ -112,7 +123,8 @@ def select_top_features(X_train, y_train, task: str, top_k=FEATURE_SELECT_TOP_K)
     return list(importances.sort_values(ascending=False).head(top_k).index)
 
 
-def tune_model(estimator_cls, param_dist, X_train, y_train, task: str, extra_params: dict | None = None):
+def tune_model(estimator_cls, param_dist, X_train, y_train, task: str,
+                extra_params: dict | None = None, sample_weight: np.ndarray | None = None):
     scoring = "neg_root_mean_squared_error" if task == "regression" else "balanced_accuracy"
     search = RandomizedSearchCV(
         estimator_cls(random_state=RANDOM_STATE, **(extra_params or {})),
@@ -123,13 +135,15 @@ def tune_model(estimator_cls, param_dist, X_train, y_train, task: str, extra_par
         random_state=RANDOM_STATE,
         n_jobs=-1,
     )
-    search.fit(X_train, y_train)
+    fit_kwargs = {"sample_weight": sample_weight} if sample_weight is not None else {}
+    search.fit(X_train, y_train, **fit_kwargs)
     return search.best_estimator_, search.best_params_
 
 
-def candidate_models_for(task: str, X_train, y_train):
+def candidate_models_for(task: str, X_train, y_train, recency_weight: np.ndarray):
     """Tune RF + HGB, keep the linear model fixed (fast/stable/low-variance),
-    and add a voting ensemble of all three as one more candidate.
+    add a voting ensemble of all three, and add recency-weighted RF + HGB
+    variants (see recency_weights()) as two more candidates.
 
     Classification candidates use class_weight="balanced" and are tuned/scored
     on balanced accuracy rather than raw accuracy -- raw accuracy is what let a
@@ -138,35 +152,70 @@ def candidate_models_for(task: str, X_train, y_train):
     penalizes missing either class equally during training; balanced accuracy
     (mean of per-class recall) scores that equally during selection. A model
     that always predicts one class now scores exactly 50% on this metric,
-    matching the majority-class baseline instead of beating it for free."""
+    matching the majority-class baseline instead of beating it for free.
+    (class_weight and sample_weight compose multiplicatively in sklearn, so
+    the recency-weighted classifiers keep the balanced-class correction too.)"""
     if task == "regression":
         linear = Pipeline([("scale", StandardScaler()), ("model", Ridge(alpha=1.0))])
         rf, rf_params = tune_model(RandomForestRegressor, RF_PARAM_DIST, X_train, y_train, task)
         hgb, hgb_params = tune_model(HistGradientBoostingRegressor, HGB_PARAM_DIST, X_train, y_train, task)
         ensemble = VotingRegressor(estimators=[("linear", linear), ("rf", rf), ("hgb", hgb)])
-        return {
+        rf_rw, rf_rw_params = tune_model(RandomForestRegressor, RF_PARAM_DIST, X_train, y_train, task,
+                                          sample_weight=recency_weight)
+        hgb_rw, hgb_rw_params = tune_model(HistGradientBoostingRegressor, HGB_PARAM_DIST, X_train, y_train, task,
+                                            sample_weight=recency_weight)
+        models = {
             "baseline_zero_return": DummyRegressor(strategy="constant", constant=0.0),
             "linear_ridge": linear,
             "random_forest_tuned": rf,
             "hist_gradient_boosting_tuned": hgb,
             "voting_ensemble": ensemble,
-        }, {"random_forest_tuned": rf_params, "hist_gradient_boosting_tuned": hgb_params}
+            "random_forest_recency_weighted": rf_rw,
+            "hist_gradient_boosting_recency_weighted": hgb_rw,
+        }
+        tuned_params = {
+            "random_forest_tuned": rf_params, "hist_gradient_boosting_tuned": hgb_params,
+            "random_forest_recency_weighted": rf_rw_params, "hist_gradient_boosting_recency_weighted": hgb_rw_params,
+        }
+        sample_weights = {
+            "random_forest_recency_weighted": recency_weight,
+            "hist_gradient_boosting_recency_weighted": recency_weight,
+        }
+        return models, tuned_params, sample_weights
     else:
         linear = Pipeline([("scale", StandardScaler()), ("model", LogisticRegression(max_iter=1000, class_weight="balanced"))])
         rf, rf_params = tune_model(RandomForestClassifier, RF_PARAM_DIST, X_train, y_train, task, {"class_weight": "balanced"})
         hgb, hgb_params = tune_model(HistGradientBoostingClassifier, HGB_PARAM_DIST, X_train, y_train, task, {"class_weight": "balanced"})
         ensemble = VotingClassifier(estimators=[("linear", linear), ("rf", rf), ("hgb", hgb)], voting="soft")
-        return {
+        rf_rw, rf_rw_params = tune_model(RandomForestClassifier, RF_PARAM_DIST, X_train, y_train, task,
+                                          {"class_weight": "balanced"}, sample_weight=recency_weight)
+        hgb_rw, hgb_rw_params = tune_model(HistGradientBoostingClassifier, HGB_PARAM_DIST, X_train, y_train, task,
+                                            {"class_weight": "balanced"}, sample_weight=recency_weight)
+        models = {
             "baseline_majority": DummyClassifier(strategy="most_frequent"),
             "logistic_regression": linear,
             "random_forest_tuned": rf,
             "hist_gradient_boosting_tuned": hgb,
             "voting_ensemble": ensemble,
-        }, {"random_forest_tuned": rf_params, "hist_gradient_boosting_tuned": hgb_params}
+            "random_forest_recency_weighted": rf_rw,
+            "hist_gradient_boosting_recency_weighted": hgb_rw,
+        }
+        tuned_params = {
+            "random_forest_tuned": rf_params, "hist_gradient_boosting_tuned": hgb_params,
+            "random_forest_recency_weighted": rf_rw_params, "hist_gradient_boosting_recency_weighted": hgb_rw_params,
+        }
+        sample_weights = {
+            "random_forest_recency_weighted": recency_weight,
+            "hist_gradient_boosting_recency_weighted": recency_weight,
+        }
+        return models, tuned_params, sample_weights
 
 
-def evaluate_regression(name, model, X_train, y_train, X_test, y_test):
-    model.fit(X_train, y_train)
+def evaluate_regression(name, model, X_train, y_train, X_test, y_test, sample_weight=None):
+    if sample_weight is not None:
+        model.fit(X_train, y_train, sample_weight=sample_weight)
+    else:
+        model.fit(X_train, y_train)
     pred_ret = model.predict(X_test)
     rmse = float(np.sqrt(mean_squared_error(y_test, pred_ret)))
     mae = float(mean_absolute_error(y_test, pred_ret))
@@ -174,8 +223,11 @@ def evaluate_regression(name, model, X_train, y_train, X_test, y_test):
     return {"model": name, "rmse": rmse, "mae": mae, "directional_accuracy": dir_acc}, model, pred_ret
 
 
-def evaluate_classification(name, model, X_train, y_train, X_test, y_test):
-    model.fit(X_train, y_train)
+def evaluate_classification(name, model, X_train, y_train, X_test, y_test, sample_weight=None):
+    if sample_weight is not None:
+        model.fit(X_train, y_train, sample_weight=sample_weight)
+    else:
+        model.fit(X_train, y_train)
     # Use the shared decision threshold (not sklearn's default 0.5) so what gets
     # reported/selected here matches exactly what predict.py/backtest_dates.py do.
     proba = model.predict_proba(X_test)[:, 1]
@@ -214,14 +266,16 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
     selected_cols = select_top_features(X_train_full, y_train, task)
     X_train, X_test = X_train_full[selected_cols], X_test_full[selected_cols]
 
-    models, tuned_params = candidate_models_for(task, X_train, y_train)
+    recency_weight = recency_weights(len(X_train))
+    models, tuned_params, sample_weights = candidate_models_for(task, X_train, y_train, recency_weight)
 
     results, fitted_models, preds = [], {}, {}
     for mname, model in models.items():
+        sw = sample_weights.get(mname)
         if task == "regression":
-            metrics, fitted, pred = evaluate_regression(mname, model, X_train, y_train, X_test, y_test)
+            metrics, fitted, pred = evaluate_regression(mname, model, X_train, y_train, X_test, y_test, sample_weight=sw)
         else:
-            metrics, fitted = evaluate_classification(mname, model, X_train, y_train, X_test, y_test)
+            metrics, fitted = evaluate_classification(mname, model, X_train, y_train, X_test, y_test, sample_weight=sw)
             pred = None
         results.append(metrics)
         fitted_models[mname] = fitted

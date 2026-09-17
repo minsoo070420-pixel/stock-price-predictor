@@ -52,6 +52,14 @@ MACRO_TICKERS = {
 HYPERPARAM_CV_SPLITS = 3       # TimeSeriesSplit folds used only for tuning, never for the final reported metric
 FEATURE_SELECT_TOP_K = 20      # when a feature set exceeds this, keep only the top-K by importance
 
+# Markets are non-stationary -- a relationship that held in 2016 isn't
+# guaranteed to hold in 2026. Recency-weighted candidates (see train.py)
+# down-weight older training rows exponentially, halving in influence every
+# this-many trading days back, rather than treating 10 years of history as
+# equally relevant. ~2 years: old enough to still use most of even PLTR's
+# shorter history meaningfully, recent enough to matter.
+RECENCY_HALF_LIFE_TRADING_DAYS = 504
+
 # Classifiers were found to sit almost permanently just above the default 0.50
 # cutoff (learning the training data's ~56% up-day base rate rather than a
 # strong daily signal), so they defaulted to predicting UP nearly every day.

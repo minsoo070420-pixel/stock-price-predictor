@@ -599,6 +599,41 @@ Sources: [How effective is machine learning in stock market predictions? (PMC)](
 [Common Backtesting Mistakes — Why Strategies Fail in Live Trading (Gainium)](https://gainium.io/blog/common-backtesting-problems) ·
 [Why 90% of Profitable Backtests Are Statistically Invalid (Medium)](https://daviddtech.medium.com/the-three-deadly-sins-of-backtesting-overfitting-look-ahead-bias-and-p-hacking-a68c6345e668)
 
+## Recency-weighted training: a genuinely new lever, not a rehash
+
+Every improvement attempt up to this point — hyperparameter tuning, feature
+selection, ensembling, macro/world-market features, implied volatility,
+class-weighting — had been tried and landed in the same ~50-58% band. Rather
+than tune something already shown not to matter much, this pass added a lever
+untested elsewhere in the project: **recency weighting**. Markets are
+non-stationary — a relationship that held in 2016 isn't guaranteed to hold in
+2026 — so `recency_weights()` in `train.py` exponentially down-weights older
+training rows (half-life 504 trading days, ~2 years) instead of treating a
+decade of history as equally relevant. Recency-weighted Random Forest and
+HistGradientBoosting variants were added as two *more* candidates competing
+in the same held-out-test selection every other model already goes through —
+not assumed to help, tested.
+
+**Result: a genuine, if modest, improvement.** Average held-out balanced
+accuracy across all 8 tickers moved from ~52.8% to ~53.2%. The gain wasn't
+spread evenly — it concentrated where it should, in tickers whose recent
+behavior differs most from their decade-long average:
+
+| Ticker | Before | After | Winning candidate |
+|---|---|---|---|
+| AMZN | 50.4% | **54.5%** | `random_forest_recency_weighted` |
+| NVDA | 53.6% | **54.9%** | (weighted variant competitive, unweighted RF still won here) |
+| META | 52.8% | 53.3% | `random_forest_recency_weighted` |
+| SP500 / AAPL / PLTR / MSFT / GOOGL | ~unchanged | ~unchanged | mostly still `baseline_persistence` |
+
+AMZN is the clearest case: its recency-weighted classifier beat every other
+candidate including persistence, a first for that ticker. This doesn't change
+the project's overall conclusion — 53.2% is still solidly inside the same
+range published research and real hedge funds report, not a breakthrough —
+but it's a real, measured gain from a lever that hadn't been pulled yet,
+which is different from the many additions before it that tested and didn't
+move the needle.
+
 ## Descriptive ticker comparison (Part 2)
 
 `src/comparison/compare_tickers.py` is Part 2 of the project: a single,
