@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from macro_features import MACRO_FEATURE_COLUMNS, align_macro_to_ticker
+from news_features import NEWS_FEATURE_COLUMNS
 
 OWN_FEATURE_COLUMNS = [
     "ret_1d", "ret_2d", "ret_3d", "ret_5d", "ret_10d",
@@ -23,6 +24,7 @@ OWN_FEATURE_COLUMNS = [
 ]
 
 FEATURE_COLUMNS = OWN_FEATURE_COLUMNS + MACRO_FEATURE_COLUMNS
+FEATURE_COLUMNS_WITH_NEWS = FEATURE_COLUMNS + NEWS_FEATURE_COLUMNS
 
 
 def _rsi(close: pd.Series, window: int = 14) -> pd.Series:
@@ -91,22 +93,32 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def make_dataset(df: pd.DataFrame, macro_df: pd.DataFrame | None = None, feature_columns: list[str] | None = None):
+def make_dataset(df: pd.DataFrame, macro_df: pd.DataFrame | None = None, news_df: pd.DataFrame | None = None,
+                  feature_columns: list[str] | None = None):
     """Return (X, y_return, y_direction, close) aligned and with NaNs dropped.
 
     If macro_df is given (see macro_features.build_macro_features), its columns
     are joined on by date -- aligned to this ticker's own trading calendar --
-    and included alongside the ticker's own technical features. `feature_columns`
-    controls which columns end up in X (default: OWN + macro if macro_df is
-    given, else OWN only) -- pass it explicitly to compare feature sets.
+    and included alongside the ticker's own technical features. news_df (see
+    news_features.news_features_for_ticker) is joined the same way. `feature_columns`
+    controls which columns end up in X (default: OWN, + macro if given, + news
+    if given) -- pass it explicitly to compare feature sets.
     """
     feats = build_features(df)
     if macro_df is not None:
         aligned = align_macro_to_ticker(macro_df, feats.index)
         feats = feats.join(aligned)
+    if news_df is not None:
+        aligned_news = align_macro_to_ticker(news_df, feats.index)
+        feats = feats.join(aligned_news)
 
     if feature_columns is None:
-        feature_columns = FEATURE_COLUMNS if macro_df is not None else OWN_FEATURE_COLUMNS
+        if news_df is not None:
+            feature_columns = FEATURE_COLUMNS_WITH_NEWS
+        elif macro_df is not None:
+            feature_columns = FEATURE_COLUMNS
+        else:
+            feature_columns = OWN_FEATURE_COLUMNS
 
     feats = feats.dropna(subset=feature_columns + ["target_return", "target_direction"])
     X = feats[feature_columns]

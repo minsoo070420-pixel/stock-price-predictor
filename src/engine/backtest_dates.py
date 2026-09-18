@@ -21,21 +21,27 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TICKERS, TRANSACTION_COST_BPS
-from features import build_features, FEATURE_COLUMNS
+from features import build_features
 from fetch_data import fetch_macro_all
 from macro_features import align_macro_to_ticker, build_macro_features
+from news_features import build_news_history, news_features_for_ticker
 
 DEFAULT_LOOKBACK_DAYS = 30
 
 
-def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: int, macro_df: pd.DataFrame) -> pd.DataFrame:
+def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: int, macro_df: pd.DataFrame,
+                     news_daily: pd.DataFrame) -> pd.DataFrame:
     df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
     feats = build_features(df)
     aligned = align_macro_to_ticker(macro_df, feats.index)
     feats = feats.join(aligned)
+    news_df = news_features_for_ticker(news_daily, name)
+    aligned_news = align_macro_to_ticker(news_df, feats.index)
+    feats = feats.join(aligned_news)
 
     with open(MODELS_DIR / f"{name}_features.json") as f:
         manifest = json.load(f)
+    required_cols = sorted(set(manifest["regressor"]) | set(manifest["classifier"]))
 
     reg = joblib.load(MODELS_DIR / f"{name}_regressor.joblib")
     clf = joblib.load(MODELS_DIR / f"{name}_classifier.joblib")
@@ -61,7 +67,7 @@ def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: in
             continue
         prior_ts = feats.index[loc - 1]
 
-        x_all = feats.loc[[prior_ts], FEATURE_COLUMNS]
+        x_all = feats.loc[[prior_ts], required_cols]
         if x_all.isna().any(axis=None):
             rows.append({"ticker": name, "date": target_date, "note": "feature row incomplete (NaN)"})
             continue
@@ -132,9 +138,14 @@ def main():
 
     macro_df = build_macro_features(fetch_macro_all())
 
+    any_df = pd.read_csv(DATA_DIR / f"{next(iter(TICKERS.values()))}.csv", index_col=0, parse_dates=True)
+    news_start = any_df.index.min().strftime("%Y-%m")
+    news_end = pd.Timestamp.today().strftime("%Y-%m")
+    news_daily = build_news_history(news_start, news_end)
+
     all_rows = []
     for name in TICKERS.values():
-        tdf = backtest_ticker(name, target_dates, lookback_days, macro_df)
+        tdf = backtest_ticker(name, target_dates, lookback_days, macro_df, news_daily)
         all_rows.append(tdf)
         plot_ticker(name, tdf)
 

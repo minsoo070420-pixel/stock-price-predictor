@@ -53,10 +53,22 @@ source venv/bin/activate   # already created; recreate with `python3 -m venv ven
 pip install -r requirements.txt
 ```
 
+To train with NYT news-sentiment features (`news_features.py`, see below),
+put a free API key from [developer.nytimes.com](https://developer.nytimes.com)
+(Archive API enabled on the app) in a `.env` file at the project root:
+
+```
+NYT_API_KEY=your-key-here
+```
+
+`.env` is gitignored, so the key never gets committed. Without it, the news
+feature set is simply unavailable and the pipeline falls back to
+baseline/macro features only.
+
 ## Usage
 
 ```bash
-python src/engine/train.py           # fetches data, engineers features, tunes + evaluates models, saves the best ones
+python src/engine/train.py           # fetches data, engineers features (incl. NYT news history on first run), tunes + evaluates models, saves the best ones
 python src/engine/predict.py         # loads saved models, prints tomorrow's prediction + live news sentiment for each ticker
 python src/engine/news_pulse.py      # just the live news-sentiment readout, on its own
 python src/engine/implied_vol.py     # just the live single-stock implied-vol/skew readout (AAPL, PLTR), on its own
@@ -70,6 +82,8 @@ python src/comparison/compare_tickers.py   # Part 2: neutral side-by-side stats 
 
 `train.py` re-downloads fresh history every run, so re-run it periodically
 (e.g. weekly) to keep models current — daily market microstructure drifts.
+The first `train.py` run also builds the full NYT news history (~120 monthly
+archive calls, cached to `data/news_cache/` afterward so subsequent runs are fast).
 
 ## Pipeline
 
@@ -348,8 +362,7 @@ always true for these classifiers.
 
 ## World-events layer: what's actually feasible without a paid data source
 
-Two different things answer "analyze what's happening in the world," and only
-one of them can honestly be trained into the model:
+Two different things answer "analyze what's happening in the world":
 
 - **Backtestable** (used by the trained models, via `macro_features.py`): global
   market indices (Nikkei/FTSE/DAX — how the rest of the world already traded
@@ -359,16 +372,59 @@ one of them can honestly be trained into the model:
   backtested with no look-ahead — same standard as every other feature here.
 - **Live-only, shown as context, NOT trained into the model** (`news_pulse.py`,
   surfaced in `predict.py`'s `live_news_sentiment` column): current headlines
-  for each ticker plus general market news, scored with VADER (a free,
-  offline, lexicon-based sentiment analyzer). This is a genuine read of
-  today's news tone — but every free news source we found (including
-  `yfinance`'s own news feed) only returns *current* headlines with no
-  point-in-time historical archive. Without that archive there's nothing to
-  backtest a "trained on news" model against, so training on it would mean
-  quietly claiming a track record that doesn't exist. A real historical
-  news-sentiment feature would need a paid archive (NewsAPI's historical
-  tier, Refinitiv, RavenPack, Bloomberg) — worth doing if this ever needs to
-  be more than a demo, but out of scope for a free, no-API-key project.
+  for each ticker plus general market news, scored with VADER. `yfinance`'s
+  news feed (and most free news sources) only return *current* headlines with
+  no point-in-time historical archive, so nothing here can be backtested — see
+  `news_features.py` below for the source that changed this.
+
+**Update**: the NYT Archive API turned out to be a genuine exception to "no
+free source has point-in-time history" — see the next section. `news_pulse.py`
+stays as-is for the same reason `implied_vol.py` does: it reads *today's*
+options chain / news feed, which has no historical archive of its own, so it's
+still correctly live-only context, not a training input.
+
+## NYT news-sentiment features (`news_features.py`)
+
+Unlike `yfinance`'s news feed, the [NYT Archive API](https://developer.nytimes.com)
+returns every article NYT published in a given month, *as NYT tagged it at the
+time* — back to 1851, free, ~2,000 requests/day. That "as tagged at the time"
+part is what makes it trainable: at row `t` the pipeline only ever uses
+articles published on or before day `t`, so there's no look-ahead risk, unlike
+a live-only feed with no historical record to anchor to.
+
+**Two signals, both scored with VADER (headline + abstract):**
+- `news_market_sentiment_mean` / `news_market_count`: daily average sentiment
+  and article volume across Business/Technology-desk coverage generally — a
+  shared "market mood" signal, applied to every ticker including SP500.
+- `news_company_sentiment_mean` / `news_company_count` /
+  `news_company_had_news`: same, filtered to articles that specifically name
+  that ticker's company. Primary match is NYT's own `organizations` keyword
+  tag (e.g. `"Apple Inc"`, `"Nvidia Corp"` — high precision), with a
+  business/tech-context-only text fallback so a quiet-tagging month doesn't
+  silently zero out the signal. Restricting the fallback to business/tech
+  articles specifically avoids generic-word collisions (`"apple"` the fruit,
+  `"amazon"` the rainforest) that a naive full-text search would hit.
+
+**How it's evaluated**: added as a third A/B leg in `train.py`, alongside the
+existing baseline-vs-macro comparison — `baseline` (own technical features)
+vs. `with_macro` (+ cross-market features) vs. `with_macro_and_news` (+ NYT
+sentiment) — and only kept per ticker/task if it actually wins on held-out
+balanced accuracy / RMSE, same discipline as every other feature added here.
+`leakage_check.py` verifies this the same way it verifies macro alignment:
+rebuild the daily news aggregate from articles truncated to `pub_date <= d`
+and confirm it's bit-for-bit identical to the same date's row built from the
+full archive.
+
+**Honest result**: unlike VIX3M/VXN and the world-market additions above, this
+one actually moved the needle for some tickers — the first feature addition
+since recency-weighting to do that. `macro+news` won outright for: **NVDA**
+(both tasks — RMSE 0.0255→0.0231, balanced accuracy 52.7%→55.4%, the largest
+single-feature jump seen in this project), **SP500**'s classifier (52.0%→54.4%
+balanced accuracy), and the regressors for **MSFT** and **GOOGL** (small RMSE
+improvements). It did *not* win for AAPL, PLTR, AMZN, or META, where baseline
+or macro-only stayed ahead — consistent with this project's running finding
+that no single feature category helps every ticker uniformly. Kept only where
+it won, per the same rule as everything else here.
 
 ## Same-day prediction (predict today's 4pm ET close)
 

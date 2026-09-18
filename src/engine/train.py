@@ -69,9 +69,10 @@ from config import (
     TICKERS,
 )
 from baselines import PersistenceClassifier, PersistenceRegressor
-from features import FEATURE_COLUMNS, OWN_FEATURE_COLUMNS, make_dataset
+from features import FEATURE_COLUMNS, FEATURE_COLUMNS_WITH_NEWS, OWN_FEATURE_COLUMNS, make_dataset
 from fetch_data import fetch_all, fetch_macro_all
 from macro_features import build_macro_features
+from news_features import build_news_history, news_features_for_ticker
 
 warnings.filterwarnings("ignore")
 
@@ -332,8 +333,8 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
     }
 
 
-def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list[str], label: str):
-    X, y_ret, y_dir, close = make_dataset(df, macro_df=macro_df, feature_columns=feature_columns)
+def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list[str], label: str, news_df=None):
+    X, y_ret, y_dir, close = make_dataset(df, macro_df=macro_df, news_df=news_df, feature_columns=feature_columns)
     parts, split = chrono_split(X, y_ret, y_dir)
     (X_train, X_test), (y_ret_train, y_ret_test), (y_dir_train, y_dir_test) = parts
     close_test = close.iloc[split:]
@@ -362,18 +363,23 @@ def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list
     }
 
 
-def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, summary_rows: list):
+def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, news_df: pd.DataFrame, summary_rows: list):
     print(f"\n=== {name} ===")
     baseline = run_feature_set(name, df, None, OWN_FEATURE_COLUMNS, "baseline: own technical features only")
     enhanced = run_feature_set(name, df, macro_df, FEATURE_COLUMNS, "enhanced: + macro/cross-market features")
+    with_news = run_feature_set(name, df, macro_df, FEATURE_COLUMNS_WITH_NEWS,
+                                 "with_news: + macro + NYT news sentiment", news_df=news_df)
 
-    reg_pick = enhanced if enhanced["reg"]["best_metric"] < baseline["reg"]["best_metric"] else baseline
-    clf_pick = enhanced if enhanced["clf"]["best_metric"] > baseline["clf"]["best_metric"] else baseline
+    candidates = [baseline, enhanced, with_news]
+    reg_pick = min(candidates, key=lambda c: c["reg"]["best_metric"])
+    clf_pick = max(candidates, key=lambda c: c["clf"]["best_metric"])
 
-    print(f"  >> regressor RMSE:              {baseline['reg']['best_metric']:.5f} (baseline) -> "
-          f"{enhanced['reg']['best_metric']:.5f} (with macro)  -- keeping '{reg_pick['label']}'")
-    print(f"  >> classifier balanced accuracy: {baseline['clf']['best_metric']:.1%} (baseline) -> "
-          f"{enhanced['clf']['best_metric']:.1%} (with macro)  -- keeping '{clf_pick['label']}'")
+    print(f"  >> regressor RMSE:              baseline={baseline['reg']['best_metric']:.5f}  "
+          f"macro={enhanced['reg']['best_metric']:.5f}  "
+          f"macro+news={with_news['reg']['best_metric']:.5f}  -- keeping '{reg_pick['label']}'")
+    print(f"  >> classifier balanced accuracy: baseline={baseline['clf']['best_metric']:.1%}  "
+          f"macro={enhanced['clf']['best_metric']:.1%}  "
+          f"macro+news={with_news['clf']['best_metric']:.1%}  -- keeping '{clf_pick['label']}'")
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(reg_pick["reg"]["best_model"], MODELS_DIR / f"{name}_regressor.joblib")
@@ -392,7 +398,7 @@ def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, summar
     plot_predictions(name, reg_pick["X_test"].index, reg_pick["close_test"], reg_pick["reg"]["best_pred"], plot_path)
     print(f"  saved plot to reports/{plot_path.name}")
 
-    for fs_label, fs in (("baseline", baseline), ("with_macro", enhanced)):
+    for fs_label, fs in (("baseline", baseline), ("with_macro", enhanced), ("with_macro_and_news", with_news)):
         for r in fs["reg"]["results"]:
             summary_rows.append({"ticker": name, "feature_set": fs_label, "task": "regression", **r})
         for r in fs["clf"]["results"]:
@@ -401,7 +407,9 @@ def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, summar
     return {
         "ticker": name,
         "baseline_reg_rmse": baseline["reg"]["best_metric"], "with_macro_reg_rmse": enhanced["reg"]["best_metric"],
+        "with_news_reg_rmse": with_news["reg"]["best_metric"],
         "baseline_clf_balanced_acc": baseline["clf"]["best_metric"], "with_macro_clf_balanced_acc": enhanced["clf"]["best_metric"],
+        "with_news_clf_balanced_acc": with_news["clf"]["best_metric"],
         "regressor_kept": f"{reg_pick['label']} / {reg_pick['reg']['best_name']}",
         "classifier_kept": f"{clf_pick['label']} / {clf_pick['clf']['best_name']}",
     }
@@ -415,10 +423,17 @@ def main():
     macro_raw = fetch_macro_all()
     macro_df = build_macro_features(macro_raw)
 
+    any_ticker_df = next(iter(data.values()))
+    news_start = any_ticker_df.index.min().strftime("%Y-%m")
+    news_end = any_ticker_df.index.max().strftime("%Y-%m")
+    print(f"Fetching NYT news archive ({news_start}..{news_end}, cached locally after first run)...")
+    news_daily = build_news_history(news_start, news_end)
+
     summary_rows = []
     comparisons = []
     for name in TICKERS.values():
-        comparisons.append(train_for_ticker(name, data[name], macro_df, summary_rows))
+        news_df = news_features_for_ticker(news_daily, name)
+        comparisons.append(train_for_ticker(name, data[name], macro_df, news_df, summary_rows))
 
     summary = pd.DataFrame(summary_rows)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)

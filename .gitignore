@@ -6,3 +6,5 @@ models/*.joblib
 models/*.json
 reports/*.png
 reports/*.csv
+.env
+data/news_cache/
