@@ -72,7 +72,7 @@ def check_news_alignment(name: str, df: pd.DataFrame, news_scored_full: pd.DataF
     full_news = news_features_for_ticker(full_daily, name)
     aligned_full = align_macro_to_ticker(full_news, feats_full.index)
 
-    pub_dates = pd.to_datetime(news_scored_full["pub_date"]).dt.tz_localize(None)
+    pub_dates = pd.to_datetime(news_scored_full["pub_date"], format="ISO8601").dt.tz_localize(None)
     for cut in cutoffs:
         truncated_df = df.iloc[:cut]
         if len(truncated_df) < 60:

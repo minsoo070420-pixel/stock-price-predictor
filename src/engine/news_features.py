@@ -160,7 +160,11 @@ def daily_aggregate(scored_df: pd.DataFrame) -> pd.DataFrame:
     if scored_df.empty:
         return pd.DataFrame()
     df = scored_df.copy()
-    df["date"] = pd.to_datetime(df["pub_date"]).dt.tz_localize(None).dt.normalize()
+    # format="ISO8601" handles both the raw NYT string (millisecond-precision,
+    # "Z"-suffixed) and the plain-datetime string pandas writes back out when a
+    # month is cached and reloaded -- letting format-inference pick one from
+    # whichever happens to be first in the batch silently breaks on the other.
+    df["date"] = pd.to_datetime(df["pub_date"], format="ISO8601").dt.tz_localize(None).dt.normalize()
 
     market = df[df["_business_ctx"]]
     out = market.groupby("date")["sentiment"].agg(["mean", "count"])
