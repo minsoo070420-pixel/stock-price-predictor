@@ -72,7 +72,13 @@ def check_news_alignment(name: str, df: pd.DataFrame, news_scored_full: pd.DataF
     full_news = news_features_for_ticker(full_daily, name)
     aligned_full = align_macro_to_ticker(full_news, feats_full.index)
 
-    pub_dates = pd.to_datetime(news_scored_full["pub_date"], format="ISO8601").dt.tz_localize(None)
+    # Normalized to the calendar date, not the exact timestamp: the real
+    # pipeline (daily_aggregate groups by pub_date's calendar day, with no
+    # time-of-day cutoff) treats a full day's news as known by day's end --
+    # legitimate for predicting the *next* day. Truncating at exact
+    # timestamp <= midnight(d) would wrongly exclude same-day articles
+    # published any time after 00:00:00, which is almost all of them.
+    pub_dates = pd.to_datetime(news_scored_full["pub_date"], format="ISO8601").dt.tz_localize(None).dt.normalize()
     for cut in cutoffs:
         truncated_df = df.iloc[:cut]
         if len(truncated_df) < 60:
