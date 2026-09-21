@@ -392,7 +392,7 @@ part is what makes it trainable: at row `t` the pipeline only ever uses
 articles published on or before day `t`, so there's no look-ahead risk, unlike
 a live-only feed with no historical record to anchor to.
 
-**Two signals, both scored with VADER (headline + abstract):**
+**Two signals, both scored with FinBERT (`ProsusAI/finbert`, headline + abstract):**
 - `news_market_sentiment_mean` / `news_market_count`: daily average sentiment
   and article volume across Business/Technology-desk coverage generally — a
   shared "market mood" signal, applied to every ticker including SP500.
@@ -415,16 +415,44 @@ rebuild the daily news aggregate from articles truncated to `pub_date <= d`
 and confirm it's bit-for-bit identical to the same date's row built from the
 full archive.
 
-**Honest result**: unlike VIX3M/VXN and the world-market additions above, this
-one actually moved the needle for some tickers — the first feature addition
-since recency-weighting to do that. `macro+news` won outright for: **NVDA**
-(both tasks — RMSE 0.0255→0.0231, balanced accuracy 52.7%→55.4%, the largest
-single-feature jump seen in this project), **SP500**'s classifier (52.0%→54.4%
-balanced accuracy), and the regressors for **MSFT** and **GOOGL** (small RMSE
-improvements). It did *not* win for AAPL, PLTR, AMZN, or META, where baseline
-or macro-only stayed ahead — consistent with this project's running finding
-that no single feature category helps every ticker uniformly. Kept only where
-it won, per the same rule as everything else here.
+**VADER → FinBERT**: this module originally used VADER (a general-purpose
+lexicon scorer — also what `news_pulse.py`'s live-only readout still uses).
+VADER has no notion that "cuts guidance" is bad news or "beats estimates" is
+good news; it just reacts to individual words like "cut" and "beat" in
+isolation. `ProsusAI/finbert` is a BERT model fine-tuned specifically on
+financial text and reliably gets that kind of headline right. It's also much
+slower — a full BERT forward pass per article instead of a lexicon lookup —
+so `news_features.py` now caches *scored* months (`data/news_scored_cache/`,
+gitignored) separately from raw fetched articles (`data/news_cache/`):
+rescoring ~50k historical articles on every pipeline run would make every
+script take minutes just to start. Only articles that actually get
+aggregated (business-context coverage, or anything mentioning a tracked
+company) are scored at all — roughly 300–450 of a typical month's 4,000+
+articles — which keeps a full historical rescore to a few minutes on a
+single Apple Silicon Mac (MPS-accelerated; falls back to CPU elsewhere).
+
+**Honest result (VADER)**: unlike VIX3M/VXN and the world-market additions
+above, this one actually moved the needle for some tickers — the first
+feature addition since recency-weighting to do that. `macro+news` won
+outright for NVDA (both tasks, the largest single-feature RMSE jump seen in
+this project at the time), SP500's classifier, and the regressors for MSFT
+and GOOGL. It did *not* win for AAPL, PLTR, AMZN, or META.
+
+**Honest result (FinBERT, after the VADER→FinBERT switch above)**: a clear
+further improvement, on the regression side especially. `macro+news` now wins
+the regressor for **7 of 8 tickers** (up from 4/8 under VADER) — SP500, AAPL,
+PLTR, MSFT, GOOGL, AMZN, NVDA — with META the only holdout (macro-only, no
+news, still wins there). **AAPL is the standout finding**: it's the one
+ticker that had never been helped by *any* feature added in this project's
+entire history (macro, world indices, implied vol, recency-weighting, or
+VADER-scored news) — FinBERT-scored news is the first thing that ever moved
+it, cutting its held-out RMSE from 0.01915 to 0.01864. NVDA's regressor RMSE
+improved further still, to 0.0230 (from 0.0255 baseline). Classifiers are a
+more mixed picture, same as always — news wins for SP500, GOOGL, and META
+(balanced accuracy), while AAPL/PLTR/MSFT/AMZN keep `baseline_persistence`
+and NVDA's classifier now prefers macro-only. Kept only where it won, per the
+same rule as everything else here — this is a genuine change in which
+feature sets win, not an assumption that a better scorer must be better.
 
 ## Same-day prediction (predict today's 4pm ET close)
 
@@ -847,8 +875,13 @@ no server or API call involved.
 - ~~Pay for a historical news/sentiment archive to properly backtest a
   news-driven feature instead of only showing it live~~ — done, for free: the
   NYT Archive API turned out to be exactly that source. See "NYT news-sentiment
-  features" above. A domain-specific (finance) sentiment model instead of
-  general-purpose VADER remains a real next step, though.
+  features" above.
+- ~~Swap VADER for a finance-domain sentiment model~~ — done: FinBERT
+  (`ProsusAI/finbert`), see above. A remaining refinement in the same vein:
+  weight articles by prominence (NYT's own `word_count`/`print_page` fields)
+  instead of counting every qualifying article equally, and add event-type
+  features (earnings, guidance, downgrade, buyback, lawsuit) alongside raw
+  sentiment polarity.
 - Multi-fold walk-forward evaluation (several rolling train/test windows,
   not just one final holdout) for the *reported* metric, not just for
   hyperparameter tuning — would show how stable these accuracy numbers are

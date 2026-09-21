@@ -8,4 +8,5 @@ reports/*.png
 reports/*.csv
 .env
 data/news_cache/
+data/news_scored_cache/
 .DS_Store

@@ -15,10 +15,23 @@ Two signals are built per trading day:
     in a World section article about the rainforest) with a text-fallback
     restricted to the same business/tech context.
 
-Both are daily-aggregated with VADER (lexicon-based, runs offline) on
+Both are daily-aggregated with FinBERT (ProsusAI/finbert -- a BERT model
+fine-tuned specifically on financial text, not a general-purpose lexicon) on
 headline + abstract, then exposed in the same shape as macro_features.py --
 one shared builder, plus align_macro_to_ticker (reused as-is) to join onto
 each ticker's own trading calendar.
+
+Why FinBERT over VADER (the original version of this module, and what
+news_pulse.py's live-only readout still uses): VADER scores words it
+recognizes from a general-purpose lexicon, so it has no notion that "cuts
+guidance" is bad news or "beats estimates" is good news -- it just reacts to
+words like "cut" and "beat" in isolation. FinBERT was fine-tuned on financial
+text specifically and reliably gets exactly that kind of headline right (see
+git history / commit message for a worked example). It's also far slower --
+a BERT forward pass per article instead of a lexicon lookup -- which is why
+this module now caches SCORED months (see SCORED_CACHE_DIR below), not just
+raw fetched articles: rescoring ~50k historical articles on every pipeline
+run would make every script take minutes just to start.
 """
 import os
 import sys
@@ -28,7 +41,6 @@ from pathlib import Path
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import DATA_DIR, ROOT
@@ -37,6 +49,9 @@ load_dotenv(ROOT / ".env")
 
 NEWS_CACHE_DIR = DATA_DIR / "news_cache"
 NEWS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+SCORED_CACHE_DIR = DATA_DIR / "news_scored_cache"
+SCORED_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 ARCHIVE_URL = "https://api.nytimes.com/svc/archive/v1/{year}/{month}.json"
 REQUEST_SLEEP_SECONDS = 6  # conservative pacing between live NYT calls, cached afterward
@@ -60,7 +75,51 @@ COMPANY_KEYWORDS = {
     "META": ["facebook inc", "meta platforms"],
 }
 
-_analyzer = SentimentIntensityAnalyzer()
+_finbert_tokenizer = None
+_finbert_model = None
+_finbert_device = None
+_finbert_pos_idx = None
+_finbert_neg_idx = None
+
+
+def _load_finbert():
+    """Lazy singleton -- only loaded the first time a score is actually
+    needed (many pipeline runs hit the scored-month cache and never need
+    this at all). Uses the Apple Silicon MPS backend when available, which
+    is meaningfully faster than CPU for batched BERT inference."""
+    global _finbert_tokenizer, _finbert_model, _finbert_device, _finbert_pos_idx, _finbert_neg_idx
+    if _finbert_model is not None:
+        return
+    import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    _finbert_tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
+    _finbert_model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
+    _finbert_device = "mps" if torch.backends.mps.is_available() else "cpu"
+    _finbert_model.to(_finbert_device)
+    _finbert_model.eval()
+    label2id = {v: k for k, v in _finbert_model.config.id2label.items()}
+    _finbert_pos_idx, _finbert_neg_idx = label2id["positive"], label2id["negative"]
+
+
+def _finbert_sentiment_batch(texts: list[str], batch_size: int = 64) -> list[float]:
+    """P(positive) - P(negative) per text, in [-1, 1] -- same range/shape as
+    VADER's old compound score, so nothing downstream (daily_aggregate etc.)
+    needs to know the scorer changed."""
+    if not texts:
+        return []
+    _load_finbert()
+    import torch
+
+    scores = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        inputs = _finbert_tokenizer(batch, return_tensors="pt", padding=True, truncation=True,
+                                     max_length=128).to(_finbert_device)
+        with torch.no_grad():
+            probs = torch.softmax(_finbert_model(**inputs).logits, dim=-1)
+        scores.extend((probs[:, _finbert_pos_idx] - probs[:, _finbert_neg_idx]).cpu().tolist())
+    return scores
 
 
 def _api_key() -> str:
@@ -134,24 +193,54 @@ def _mentions_company(row: pd.Series, keywords: list[str]) -> bool:
     return any(kw in text for kw in keywords)
 
 
-def _score_sentiment(row: pd.Series) -> float:
-    text = f"{row['headline']}. {row['abstract']}".strip()
-    if not text or text == ".":
-        return float("nan")
-    return _analyzer.polarity_scores(text)["compound"]
-
-
 def build_month_sentiment(month_df: pd.DataFrame) -> pd.DataFrame:
-    """Adds business-context flag, VADER sentiment, and a per-company mention
-    flag for every configured ticker to a raw month's articles."""
+    """Adds business-context flag, FinBERT sentiment, and a per-company
+    mention flag for every configured ticker to a raw month's articles.
+
+    Only articles that actually end up used downstream -- business-context
+    ones, plus anything that mentions a tracked company even outside that
+    context -- get scored; a typical NYT month has ~4,000+ articles total but
+    only ~300-450 are ever aggregated, and FinBERT is expensive enough
+    (a BERT forward pass, not a lexicon lookup) that skipping the other ~90%
+    matters."""
     if month_df.empty:
         return month_df
     df = month_df.copy()
     df["_business_ctx"] = df.apply(_is_business_context, axis=1)
-    df["sentiment"] = df.apply(_score_sentiment, axis=1)
     for ticker, keywords in COMPANY_KEYWORDS.items():
         df[f"_mentions_{ticker}"] = df.apply(lambda r: _mentions_company(r, keywords), axis=1)
+
+    mention_cols = [f"_mentions_{t}" for t in COMPANY_KEYWORDS]
+    relevant_mask = df["_business_ctx"] | df[mention_cols].any(axis=1)
+
+    df["sentiment"] = float("nan")
+    texts, text_idx = [], []
+    for i in df.index[relevant_mask]:
+        text = f"{df.at[i, 'headline']}. {df.at[i, 'abstract']}".strip()
+        if text and text != ".":
+            texts.append(text)
+            text_idx.append(i)
+    if texts:
+        df.loc[text_idx, "sentiment"] = _finbert_sentiment_batch(texts)
     return df
+
+
+def _scored_cache_path(year: int, month: int) -> Path:
+    return SCORED_CACHE_DIR / f"{year}_{month:02d}.csv"
+
+
+def score_month(year: int, month: int, force: bool = False) -> pd.DataFrame:
+    """Fetches (via fetch_month's own cache) and scores one month, caching
+    the SCORED result separately -- rescoring is the expensive step now, not
+    refetching, so it gets its own cache keyed the same way."""
+    path = _scored_cache_path(year, month)
+    if path.exists() and not force:
+        return pd.read_csv(path, parse_dates=["pub_date"])
+    raw = fetch_month(year, month, force=force)
+    scored = build_month_sentiment(raw)
+    if not scored.empty:
+        scored.to_csv(path, index=False)
+    return scored
 
 
 def daily_aggregate(scored_df: pd.DataFrame) -> pd.DataFrame:
@@ -180,17 +269,18 @@ def daily_aggregate(scored_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_scored_articles(start_date: str, end_date: str) -> pd.DataFrame:
-    """Fetches (or loads from cache) every month in [start_date, end_date] and
-    scores it -- one row per article, not yet aggregated to daily. Exposed
-    separately from build_news_history() so leakage_check.py can truncate at
-    the article level by pub_date, the same way it truncates raw macro series."""
+    """Loads (or fetches + scores, then caches) every month in
+    [start_date, end_date] -- one row per article, not yet aggregated to
+    daily. Exposed separately from build_news_history() so leakage_check.py
+    can truncate at the article level by pub_date, the same way it truncates
+    raw macro series. The current calendar month is always rescored (never
+    served from either cache) since it's still accumulating articles."""
     months = pd.period_range(start=start_date, end=end_date, freq="M")
     current_period = pd.Timestamp.today().to_period("M")
     frames = []
     for i, p in enumerate(months, 1):
         print(f"  news archive {p.year}-{p.month:02d} ({i}/{len(months)})...")
-        raw = fetch_month(p.year, p.month, force=(p == current_period))
-        scored = build_month_sentiment(raw)
+        scored = score_month(p.year, p.month, force=(p == current_period))
         if not scored.empty:
             frames.append(scored)
     if not frames:

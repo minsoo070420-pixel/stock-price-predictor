@@ -6,3 +6,5 @@ matplotlib
 vaderSentiment
 python-dotenv
 requests
+torch
+transformers
