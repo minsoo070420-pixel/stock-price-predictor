@@ -8,3 +8,4 @@ reports/*.png
 reports/*.csv
 .env
 data/news_cache/
+.DS_Store
