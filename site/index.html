@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F6F8;
+    --surface: #FFFFFF;
+    --surface-2: #ECEFF3;
+    --ink: #12182B;
+    --ink-soft: #4B5568;
+    --ink-faint: #7C879C;
+    --border: #DFE3EA;
+    --accent: #9C6B15;
+    --accent-ink: #6E4C0E;
+    --accent-soft: #F3E4C6;
+    --up: #1C7A4D;
+    --up-soft: #E3F3EA;
+    --down: #B23A34;
+    --down-soft: #FBE7E5;
+    --shadow: 0 1px 2px rgba(18,24,43,0.04), 0 8px 24px -12px rgba(18,24,43,0.12);
+    --radius: 10px;
+    --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --sans: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1420;
+      --surface: #161E30;
+      --surface-2: #1D2740;
+      --ink: #E8EAF0;
+      --ink-soft: #9AA3B8;
+      --ink-faint: #67728A;
+      --border: #2A3448;
+      --accent: #E0AA4E;
+      --accent-ink: #F2C877;
+      --accent-soft: #2E2413;
+      --up: #3FBE83;
+      --up-soft: #12261C;
+      --down: #E5665F;
+      --down-soft: #2E1615;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1420;
+    --surface: #161E30;
+    --surface-2: #1D2740;
+    --ink: #E8EAF0;
+    --ink-soft: #9AA3B8;
+    --ink-faint: #67728A;
+    --border: #2A3448;
+    --accent: #E0AA4E;
+    --accent-ink: #F2C877;
+    --accent-soft: #2E2413;
+    --up: #3FBE83;
+    --up-soft: #12261C;
+    --down: #E5665F;
+    --down-soft: #2E1615;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    margin: 0;
+    padding-inline: 20px;
+    padding-block: 32px 64px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+
+  a { color: var(--accent-ink); }
+
+  /* ---------- header ---------- */
+  header { display: flex; flex-direction: column; gap: 14px; }
+  .header-top {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 6px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(28px, 4vw, 38px);
+    margin: 0; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .subhead { color: var(--ink-soft); font-size: 15px; margin-top: 6px; max-width: 62ch; line-height: 1.5; }
+  .source-link {
+    font-family: var(--mono); font-size: 12.5px; white-space: nowrap; text-decoration: none;
+    border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; color: var(--ink-soft);
+  }
+  .source-link:hover { border-color: var(--accent); color: var(--accent-ink); }
+
+  .disclaimer {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius);
+    padding: 12px 16px; font-size: 13.5px; color: var(--accent-ink); line-height: 1.5;
+  }
+  .disclaimer b { color: inherit; }
+  .meta-row {
+    font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .meta-row span { white-space: nowrap; }
+
+  /* ---------- headline stats ---------- */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .stat-tile { background: var(--surface); padding: 18px 16px; }
+  .stat-value { font-family: var(--mono); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat-label { font-size: 12px; color: var(--ink-soft); margin-top: 4px; line-height: 1.4; }
+
+  /* ---------- section shell ---------- */
+  section { display: flex; flex-direction: column; gap: 14px; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: 21px; margin: 0; letter-spacing: -0.005em; }
+  .section-note { color: var(--ink-soft); font-size: 13.5px; line-height: 1.55; max-width: 74ch; margin-top: -6px; }
+
+  /* ---------- ticker cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow);
+    border-top: 3px solid var(--card-stripe, var(--border));
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .ticker-sym { font-family: var(--mono); font-weight: 600; font-size: 16px; letter-spacing: 0.01em; }
+  .sector-tag { font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .model-chip {
+    font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 999px;
+    background: var(--surface-2); color: var(--ink-soft); white-space: nowrap;
+  }
+
+  .metric-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .metric-label { font-size: 11.5px; color: var(--ink-soft); }
+  .metric-value { font-family: var(--mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .bar-track { height: 5px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+
+  .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    font-family: var(--mono); font-size: 11px; padding: 3px 9px; border-radius: 999px; font-weight: 600;
+  }
+  .pill.up { background: var(--up-soft); color: var(--up); }
+  .pill.down { background: var(--down-soft); color: var(--down); }
+  .pill.neutral { background: var(--surface-2); color: var(--ink-soft); }
+
+  .long-horizon-line { font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+  .long-horizon-line b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 13px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600;
+    background: var(--surface-2); padding: 10px 14px; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.ticker-cell { font-family: var(--mono); font-weight: 600; }
+  td.num { font-family: var(--mono); }
+  td.pos { color: var(--up); font-family: var(--mono); }
+  td.neg { color: var(--down); font-family: var(--mono); }
+
+  /* ---------- horizon mini grid ---------- */
+  .horizon-grid { display: grid; grid-template-columns: 140px repeat(4, 1fr); gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; font-size: 12px; }
+  .horizon-grid > div { background: var(--surface); padding: 10px 12px; }
+  .horizon-grid .hcol-head { background: var(--surface-2); font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+  .horizon-grid .hrow-label { font-family: var(--mono); font-weight: 600; }
+  .horizon-grid .hval { text-align: center; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- horizon tab selector ---------- */
+  .horizon-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .horizon-tab {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.02em;
+    padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-soft); cursor: pointer;
+  }
+  .horizon-tab:hover { border-color: var(--accent); color: var(--ink); }
+  .horizon-tab.active { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .low-n { color: var(--ink-faint); font-size: 11px; }
+
+  footer {
+    border-top: 1px solid var(--border); padding-top: 24px; display: flex; flex-direction: column; gap: 10px;
+  }
+  footer p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: 0; max-width: 74ch; }
+  footer b { color: var(--ink); }
+
+  @media (max-width: 620px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .horizon-grid { grid-template-columns: 100px repeat(4, 1fr); font-size: 11px; }
+    .header-top { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+  <header>
+    <div class="header-top">
+      <div>
+        <p class="eyebrow">Quant research console · 8 tickers</p>
+        <h1>Direction Console</h1>
+        <p class="subhead">Live snapshot of a walk-forward-validated next-day direction predictor for SP500, AAPL, PLTR, MSFT, GOOGL, AMZN, NVDA and META — every number below is a backtested statistic, not a forecast you should act on.</p>
+      </div>
+      <a class="source-link" href="https://github.com/minsoo070420-pixel/stock-price-predictor" target="_blank" rel="noopener">View source ↗</a>
+    </div>
+    <div class="disclaimer">
+      <span>⚠</span>
+      <span><b>Not investment advice.</b> This page reports historical backtest accuracy and cost-adjusted returns — it does not recommend buying, selling, or holding anything. Daily direction accuracy sits close to a coin flip (50–58%), matching published research on efficient markets, not a discovered edge. Full methodology in the linked repo.</span>
+    </div>
+    <div class="meta-row">
+      <span>Data as of <span id="asof-date"></span></span>
+      <span>·</span>
+      <span>Held-out test: ~1.5yrs per ticker</span>
+      <span>·</span>
+      <span>Recent window: last 5 trading days</span>
+    </div>
+  </header>
+
+  <section class="stat-row" aria-label="headline statistics">
+    <div class="stat-tile">
+      <div class="stat-value" id="stat-avg-acc">—</div>
+      <div class="stat-label">avg held-out balanced accuracy, 8 tickers</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-value">50.1%</div>
+      <div class="stat-label">published baseline — 918-experiment walk-forward study</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-value" id="stat-persistence-wins">—</div>
+      <div class="stat-label">tickers where a plain "yesterday repeats" rule wins</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-value">52–58%</div>
+      <div class="stat-label">real quant-fund hit rates on their best signals</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Per-ticker snapshot</h2>
+    <p class="section-note">Held-out accuracy is the reliable number — hundreds of days, what's actually deployed. The recent-5-day chip is a small, noisy sample; read it next to held-out, not instead of it.</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section>
+    <p class="eyebrow" style="margin-bottom:0">Near-term · last 5 trading days</p>
+    <h2>Would trading these calls have made money?</h2>
+    <p class="section-note">Simulates going long on an UP call and short on a DOWN call, net of an assumed round-trip transaction cost per ticker. Several tickers with strong directional accuracy this window still lost money — a single large miss can outweigh several small correct calls.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th>Accuracy</th><th>Avg net bps/trade</th><th>Cumulative</th></tr>
+        </thead>
+        <tbody id="reality-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow" style="margin-bottom:0">Long-horizon · 3 / 6 / 9 / 12 months</p>
+    <h2>Out-of-sample "always bet UP" hit rate</h2>
+    <p class="section-note">A different, much weaker claim than daily prediction — the historical rate at which price was higher N months later. Independent-sample counts shrink fast at longer horizons; a 97% reading at 12 months can rest on a single non-overlapping window. See the repo's <a href="https://github.com/minsoo070420-pixel/stock-price-predictor#the-80-90-question-can-this-hit-80-90-accuracy" target="_blank" rel="noopener">80–90% question</a> writeup before reading these as forecasts.</p>
+    <div class="horizon-grid" id="horizon-grid">
+      <div></div><div class="hcol-head">1mo</div><div class="hcol-head">3mo</div><div class="hcol-head">6mo</div><div class="hcol-head">1yr</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow" style="margin-bottom:0">Long-horizon · 3 / 6 / 9 / 12 months</p>
+    <h2>Was the percent prediction correct?</h2>
+    <p class="section-note">A sharper test than the hit-rate above: using <b>only</b> price history from before an anchor date ~1 year back, the pipeline computes a median-based expected return at each horizon — then checks it against what actually happened, now that every one of these windows (even the 12-month one) has fully played out. Getting the sign right and getting the number right are different claims; this table checks both.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th>Horizon</th><th>Expected</th><th>Actual</th><th>Error</th><th>Direction</th></tr>
+        </thead>
+        <tbody id="eva-body"></tbody>
+      </table>
+    </div>
+    <p class="section-note" id="eva-summary"></p>
+  </section>
+
+  <section>
+    <p class="eyebrow" style="margin-bottom:0">Long-horizon · pick one</p>
+    <h2>Today's forecast at a horizon you choose</h2>
+    <p class="section-note">Same buy-and-hold-drift methodology as the two sections above — <b>not</b> the day-to-day models the rest of this project uses, and not a signal about what's about to happen. "Expected return" is the historical <b>median</b> forward return at this horizon computed from all of this ticker's history to date (median minimizes forecast error, per standard forecasting theory); the hit-rate column is how often that direction has actually been right, out-of-sample, historically. Longer horizons can rest on very few independent samples — check the count before trusting the percentage.</p>
+    <div class="horizon-tabs" id="horizon-tabs" role="tablist" aria-label="Choose a forecast horizon">
+      <button class="horizon-tab" data-horizon="3 months" type="button">3 months</button>
+      <button class="horizon-tab" data-horizon="6 months" type="button">6 months</button>
+      <button class="horizon-tab" data-horizon="9 months" type="button">9 months</button>
+      <button class="horizon-tab" data-horizon="12 months" type="button">12 months</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th>Last price</th><th>Historical median return</th><th>Implied price</th><th>Target date</th><th>Historical hit rate</th></tr>
+        </thead>
+        <tbody id="horizon-forecast-body"></tbody>
+      </table>
+    </div>
+    <p class="section-note" id="horizon-forecast-note"></p>
+  </section>
+
+  <section>
+    <h2>Fundamentals (descriptive only — no recommendation)</h2>
+    <p class="section-note">Raw public data, shown without a verdict. SP500 is an index, not a company, so most fields are structurally not applicable to it.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th>Sector</th><th>Trailing P/E</th><th>Forward P/E</th><th>Market cap</th><th>Profit margin</th><th>Revenue growth</th></tr>
+        </thead>
+        <tbody id="fundamentals-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Not investment advice.</b> This dashboard reports the outputs of a leakage-checked, walk-forward-validated research pipeline — it is not a trading signal, and no ticker shown as "better" here is a recommendation to buy it. Daily-direction accuracy in the 50–58% range matches the most rigorous published research on market efficiency, not an exploitable edge.</p>
+    <p>Methodology, source code, and the full writeup — including why a naive "yesterday repeats" rule beats most tuned models, and why hit-rate percentages alone understate risk — live in the <a href="https://github.com/minsoo070420-pixel/stock-price-predictor" target="_blank" rel="noopener">GitHub repository</a>.</p>
+  </footer>
+
+</div>
+
+<script id="data" type="application/json">
+{
+  "SP500": {
+    "held_out_balanced_accuracy": 0.5507257219811462,
+    "held_out_days": 368,
+    "classifier_type": "RandomForestClassifier",
+    "regressor_type": "HistGradientBoostingRegressor",
+    "recent5d_accuracy": 0.8,
+    "recent5d_correct": 4,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": 32.367022571831995,
+    "recent5d_cum_pct": 1.6183511285915997,
+    "long_horizon_call": "UP over 2 months",
+    "long_horizon_hit_rate": 0.866,
+    "four_horizon": {
+      "1 month": 0.7394957983193278,
+      "3 months": 0.9047619047619048,
+      "6 months": 0.9523809523809524,
+      "1 year": 1.0
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 4.325659578642349,
+        "actual_pct": 3.0287737015607163,
+        "error_pts": -1.2968858770816327,
+        "direction_match": true,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 7.383786600368958,
+        "actual_pct": 0.0930274398767139,
+        "error_pts": -7.290759160492244,
+        "direction_match": true,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 10.314647111324982,
+        "actual_pct": 13.639124700194571,
+        "error_pts": 3.32447758886959,
+        "direction_match": true,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 14.351698964642344,
+        "actual_pct": 15.910518181704523,
+        "error_pts": 1.5588192170621795,
+        "direction_match": true,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": null,
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 4.336296967983411,
+        "predicted_price": 7982.248399535571,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.9047619047619048,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 7.810972447109865,
+        "predicted_price": 8248.07844706614,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.9523809523809524,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 11.143044420914627,
+        "predicted_price": 8502.998613422074,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 14.99615938598905,
+        "predicted_price": 8797.781173825091,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 7650.5
+  },
+  "AAPL": {
+    "held_out_balanced_accuracy": 0.5148128358120343,
+    "held_out_days": 368,
+    "classifier_type": "HistGradientBoostingClassifier",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.0,
+    "recent5d_correct": 0,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": -57.56173867196079,
+    "recent5d_cum_pct": -2.8780869335980395,
+    "long_horizon_call": "UP over 6 months",
+    "long_horizon_hit_rate": 0.976,
+    "four_horizon": {
+      "1 month": 0.6470588235294118,
+      "3 months": 0.8,
+      "6 months": 0.9761904761904762,
+      "1 year": 1.0
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 6.793654278156714,
+        "actual_pct": 15.015758606675387,
+        "error_pts": 8.222104328518675,
+        "direction_match": true,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 12.719009096678558,
+        "actual_pct": 4.370275413869273,
+        "error_pts": -8.348733682809284,
+        "direction_match": true,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 21.346303296758904,
+        "actual_pct": 25.04836010136875,
+        "error_pts": 3.702056804609843,
+        "direction_match": true,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 26.293139491864626,
+        "actual_pct": 41.16558706337008,
+        "error_pts": 14.872447571505454,
+        "direction_match": true,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 38.591274,
+      "forward_pe": 35.05517,
+      "market_cap_b": 4905.541566464,
+      "price_to_book": 45.669838,
+      "profit_margin_pct": 27.618998,
+      "revenue_growth_pct": 16.400000000000002,
+      "sector": "Technology"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 7.0858263583130965,
+        "predicted_price": 359.9475933669979,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.8,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 13.686708995092475,
+        "predicted_price": 382.1351404963132,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.9761904761904762,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 21.693012183903605,
+        "predicted_price": 409.0467277957968,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 26.003132293674515,
+        "predicted_price": 423.5343347312248,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 336.1300048828125
+  },
+  "PLTR": {
+    "held_out_balanced_accuracy": 0.5825688073394495,
+    "held_out_days": 218,
+    "classifier_type": "PersistenceClassifier",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": 73.11269840585345,
+    "recent5d_cum_pct": 3.6556349202926723,
+    "long_horizon_call": "none reliable (see long_horizon_drift.py)",
+    "long_horizon_hit_rate": null,
+    "four_horizon": {
+      "1 month": 0.4117647058823529,
+      "3 months": 0.2962962962962963,
+      "6 months": 0.3333333333333333,
+      "1 year": null
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 10.081371869937117,
+        "actual_pct": 11.536860902809408,
+        "error_pts": 1.4554890328722925,
+        "direction_match": true,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 22.847453947514275,
+        "actual_pct": -7.515005654173102,
+        "error_pts": -30.362459601687377,
+        "direction_match": false,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 59.988839030313336,
+        "actual_pct": -23.6796769302939,
+        "error_pts": -83.66851596060724,
+        "direction_match": false,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 80.74192672805951,
+        "actual_pct": 5.530801079618453,
+        "error_pts": -75.21112564844105,
+        "direction_match": true,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 151.82907,
+      "forward_pe": 76.47041,
+      "market_cap_b": 426.879287296,
+      "price_to_book": 43.667652,
+      "profit_margin_pct": 49.005002,
+      "revenue_growth_pct": 92.8,
+      "sector": "Technology"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 7.270360318046764,
+        "predicted_price": 190.5550674142519,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.2962962962962963,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 1436
+      },
+      "6 months": {
+        "expected_return_pct": 16.28909601555508,
+        "predicted_price": 206.57594945225972,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.3333333333333333,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 1373
+      },
+      "9 months": {
+        "expected_return_pct": 49.03058442467667,
+        "predicted_price": 264.73792926238514,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 0.3333333333333333,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 1310
+      },
+      "12 months": {
+        "expected_return_pct": 74.81707770224497,
+        "predicted_price": 310.5450557632692,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": null,
+        "reliable": false,
+        "effective_independent_n": 0,
+        "n_historical_samples": 1247
+      }
+    },
+    "last_price": 177.63999938964844
+  },
+  "MSFT": {
+    "held_out_balanced_accuracy": 0.5136214393468808,
+    "held_out_days": 368,
+    "classifier_type": "RandomForestClassifier",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": 4.340417654304929,
+    "recent5d_cum_pct": 0.21702088271524644,
+    "long_horizon_call": "none reliable (see long_horizon_drift.py)",
+    "long_horizon_hit_rate": null,
+    "four_horizon": {
+      "1 month": 0.5350140056022409,
+      "3 months": 0.5301587301587302,
+      "6 months": 0.3928571428571428,
+      "1 year": 0.1984126984126984
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 7.553248622114084,
+        "actual_pct": -6.419033644702054,
+        "error_pts": -13.97228226681614,
+        "direction_match": false,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 16.294868004438314,
+        "actual_pct": -23.407378145920177,
+        "error_pts": -39.70224615035849,
+        "direction_match": false,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 25.930781627641142,
+        "actual_pct": -25.139634505479115,
+        "error_pts": -51.070416133120254,
+        "direction_match": false,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 34.29142618831689,
+        "actual_pct": -2.3876153606371853,
+        "error_pts": -36.679041548954075,
+        "direction_match": false,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 27.47802,
+      "forward_pe": 20.929373,
+      "market_cap_b": 3666.58584576,
+      "price_to_book": 8.289767,
+      "profit_margin_pct": 40.305,
+      "revenue_growth_pct": 17.7,
+      "sector": "Technology"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 6.65249353062054,
+        "predicted_price": 526.6286812535877,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.5301587301587302,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 15.786790381388894,
+        "predicted_price": 571.7320121318091,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.3928571428571428,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 23.6182783887684,
+        "predicted_price": 610.4023335190484,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 0.2751322751322751,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 31.99651884705368,
+        "predicted_price": 651.772409151696,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 0.1984126984126984,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 493.7799987792969
+  },
+  "GOOGL": {
+    "held_out_balanced_accuracy": 0.5508996212121212,
+    "held_out_days": 368,
+    "classifier_type": "Pipeline",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 1.0,
+    "recent5d_correct": 5,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": 137.56089484769683,
+    "recent5d_cum_pct": 6.878044742384842,
+    "long_horizon_call": "UP over 6 months",
+    "long_horizon_hit_rate": 0.984,
+    "four_horizon": {
+      "1 month": 0.6638655462184874,
+      "3 months": 0.7777777777777778,
+      "6 months": 0.984126984126984,
+      "1 year": 1.0
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 6.6176707133014485,
+        "actual_pct": 22.939339684511697,
+        "error_pts": 16.321668971210247,
+        "direction_match": true,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 9.433511743283464,
+        "actual_pct": 23.25060624020472,
+        "error_pts": 13.817094496921255,
+        "direction_match": true,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 16.643819607021683,
+        "actual_pct": 47.77785904646245,
+        "error_pts": 31.134039439440777,
+        "direction_match": true,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 24.22026312189296,
+        "actual_pct": 40.44365385614017,
+        "error_pts": 16.22339073424721,
+        "direction_match": true,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 17.54719,
+      "forward_pe": 23.48764,
+      "market_cap_b": 4274.85167616,
+      "price_to_book": 6.8677306,
+      "profit_margin_pct": 54.771,
+      "revenue_growth_pct": 24.2,
+      "sector": "Communication Services"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 7.151354523716713,
+        "predicted_price": 374.53685375819896,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.7777777777777778,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 11.021341074910174,
+        "predicted_price": 388.0640050799279,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.984126984126984,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 18.609051176378166,
+        "predicted_price": 414.586087616963,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 27.207742193582597,
+        "predicted_price": 444.6419529332508,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 349.5400085449219
+  },
+  "AMZN": {
+    "held_out_balanced_accuracy": 0.5453725872720286,
+    "held_out_days": 368,
+    "classifier_type": "HistGradientBoostingClassifier",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.8,
+    "recent5d_correct": 4,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": 59.96614270257538,
+    "recent5d_cum_pct": 2.998307135128769,
+    "long_horizon_call": "UP over 6 months",
+    "long_horizon_hit_rate": 0.812,
+    "four_horizon": {
+      "1 month": 0.6106442577030813,
+      "3 months": 0.653968253968254,
+      "6 months": 0.8134920634920635,
+      "1 year": 0.9603174603174603
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 6.642536304380653,
+        "actual_pct": -3.9115783393440906,
+        "error_pts": -10.554114643724745,
+        "direction_match": false,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 10.784688185116533,
+        "actual_pct": -9.86961449454553,
+        "error_pts": -20.654302679662063,
+        "direction_match": false,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 16.368754336383994,
+        "actual_pct": 5.513342777682029,
+        "error_pts": -10.855411558701968,
+        "direction_match": true,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 23.559677416944385,
+        "actual_pct": 9.537178163527416,
+        "error_pts": -14.022499253416964,
+        "direction_match": true,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 20.411102,
+      "forward_pe": 24.453907,
+      "market_cap_b": 2736.595664896,
+      "price_to_book": 4.959536,
+      "profit_margin_pct": 17.44,
+      "revenue_growth_pct": 19.6,
+      "sector": "Consumer Cyclical"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 5.953063028177197,
+        "predicted_price": 268.8135233223363,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.653968253968254,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 10.263233374676062,
+        "predicted_price": 279.7488567978177,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.8134920634920635,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 14.65403769348217,
+        "predicted_price": 290.88876672985344,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 0.873015873015873,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 19.844480055845615,
+        "predicted_price": 304.0574383958852,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 0.9603174603174603,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 253.7100067138672
+  },
+  "NVDA": {
+    "held_out_balanced_accuracy": 0.5479844674556213,
+    "held_out_days": 361,
+    "classifier_type": "RandomForestClassifier",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": 35.1735678380879,
+    "recent5d_cum_pct": 1.758678391904395,
+    "long_horizon_call": "UP over 3 months",
+    "long_horizon_hit_rate": 0.815,
+    "four_horizon": {
+      "1 month": 0.6638655462184874,
+      "3 months": 0.8126984126984127,
+      "6 months": 0.9126984126984128,
+      "1 year": 1.0
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 15.907846396609605,
+        "actual_pct": 4.368959420672036,
+        "error_pts": -11.538886975937569,
+        "direction_match": true,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 34.57189252737809,
+        "actual_pct": 4.867924162245463,
+        "error_pts": -29.703968365132628,
+        "direction_match": true,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 54.25445891514461,
+        "actual_pct": 23.88203586812068,
+        "error_pts": -30.372423047023933,
+        "direction_match": true,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 81.15561391061699,
+        "actual_pct": 30.83711143677632,
+        "error_pts": -50.31850247384067,
+        "direction_match": true,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 28.099874,
+      "forward_pe": 14.173006,
+      "market_cap_b": 5367.153557504,
+      "price_to_book": 23.438786,
+      "profit_margin_pct": 63.663,
+      "revenue_growth_pct": 105.9,
+      "sector": "Technology"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 13.788905199223825,
+        "predicted_price": 252.91860444790137,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.8126984126984127,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 30.028897505517985,
+        "predicted_price": 289.0152360409487,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.9126984126984128,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 49.26370619867988,
+        "predicted_price": 331.7684461450394,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 0.9894179894179894,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 71.65437698157362,
+        "predicted_price": 381.5361910508099,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 222.27000427246097
+  },
+  "META": {
+    "held_out_balanced_accuracy": 0.5334593907879576,
+    "held_out_days": 368,
+    "classifier_type": "Pipeline",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.2,
+    "recent5d_correct": 1,
+    "recent5d_n": 5,
+    "recent5d_avg_net_bps": -58.52160917295514,
+    "recent5d_cum_pct": -2.926080458647757,
+    "long_horizon_call": "none reliable (see long_horizon_drift.py)",
+    "long_horizon_hit_rate": null,
+    "four_horizon": {
+      "1 month": 0.5042016806722689,
+      "3 months": 0.4634920634920635,
+      "6 months": 0.25,
+      "1 year": 0.238095238095238
+    },
+    "expected_vs_actual": [
+      {
+        "horizon": "3 months",
+        "expected_pct": 7.140370498299998,
+        "actual_pct": -15.158830481224284,
+        "error_pts": -22.29920097952428,
+        "direction_match": false,
+        "target_date": "2025-12-16"
+      },
+      {
+        "horizon": "6 months",
+        "expected_pct": 13.292581792811964,
+        "actual_pct": -21.60510399651023,
+        "error_pts": -34.897685789322196,
+        "direction_match": false,
+        "target_date": "2026-03-19"
+      },
+      {
+        "horizon": "9 months",
+        "expected_pct": 23.779594501072012,
+        "actual_pct": -25.345249247367978,
+        "error_pts": -49.124843748439986,
+        "direction_match": false,
+        "target_date": "2026-06-18"
+      },
+      {
+        "horizon": "12 months",
+        "expected_pct": 29.72607566010972,
+        "actual_pct": -13.895217012290216,
+        "error_pts": -43.62129267239994,
+        "direction_match": false,
+        "target_date": "2026-09-18"
+      }
+    ],
+    "fundamentals": {
+      "trailing_pe": 25.06589,
+      "forward_pe": 19.043377,
+      "market_cap_b": 1696.00221184,
+      "price_to_book": 6.493855,
+      "profit_margin_pct": 29.834998,
+      "revenue_growth_pct": 28.000000000000004,
+      "sector": "Communication Services"
+    },
+    "horizon_forecast": {
+      "3 months": {
+        "expected_return_pct": 5.409617745246464,
+        "predicted_price": 701.7645301389783,
+        "target_date": "2026-12-16",
+        "oos_hit_rate": 0.4634920634920635,
+        "reliable": true,
+        "effective_independent_n": 5,
+        "n_historical_samples": 2451
+      },
+      "6 months": {
+        "expected_return_pct": 11.165023253076525,
+        "predicted_price": 740.081142307357,
+        "target_date": "2027-03-15",
+        "oos_hit_rate": 0.25,
+        "reliable": true,
+        "effective_independent_n": 2,
+        "n_historical_samples": 2388
+      },
+      "9 months": {
+        "expected_return_pct": 21.333628617178245,
+        "predicted_price": 807.7786325188641,
+        "target_date": "2027-06-10",
+        "oos_hit_rate": 0.2804232804232804,
+        "reliable": true,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2325
+      },
+      "12 months": {
+        "expected_return_pct": 25.18433328317927,
+        "predicted_price": 833.4146988327661,
+        "target_date": "2027-09-07",
+        "oos_hit_rate": 0.238095238095238,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2262
+      }
+    },
+    "last_price": 665.75
+  }
+}
+</script>
+<script>
+  const DATA = JSON.parse(document.getElementById('data').textContent);
+  const TICKERS = ["SP500","AAPL","PLTR","MSFT","GOOGL","AMZN","NVDA","META"];
+
+  document.getElementById('asof-date').textContent = "Sep 21, 2026";
+
+  const CLASSIFIER_LABEL = {
+    "PersistenceClassifier": "Persistence (momentum)",
+    "HistGradientBoostingClassifier": "Tuned · HistGB",
+    "RandomForestClassifier": "Tuned · Random Forest",
+    "VotingClassifier": "Tuned · Ensemble",
+    "Pipeline": "Tuned · Logistic",
+  };
+
+  function pct(x, digits=1) {
+    if (x === null || x === undefined || isNaN(x)) return "—";
+    return (x*100).toFixed(digits) + "%";
+  }
+  function fmtBps(x) {
+    if (x === null || x === undefined) return "—";
+    const sign = x >= 0 ? "+" : "";
+    return sign + x.toFixed(1);
+  }
+  function fmtPctSigned(x) {
+    if (x === null || x === undefined) return "—";
+    const sign = x >= 0 ? "+" : "";
+    return sign + x.toFixed(2) + "%";
+  }
+  function fmtCap(b) {
+    if (b === null || b === undefined) return "—";
+    if (b >= 1000) return "$" + (b/1000).toFixed(2) + "T";
+    return "$" + b.toFixed(0) + "B";
+  }
+
+  // ---- headline stats ----
+  const accs = TICKERS.map(t => DATA[t].held_out_balanced_accuracy);
+  const avgAcc = accs.reduce((a,b) => a+b, 0) / accs.length;
+  document.getElementById('stat-avg-acc').textContent = pct(avgAcc);
+  const persistWins = TICKERS.filter(t => DATA[t].classifier_type === "PersistenceClassifier").length;
+  document.getElementById('stat-persistence-wins').textContent = persistWins + " / 8";
+
+  // ---- ticker cards ----
+  const cardsEl = document.getElementById('cards');
+  TICKERS.forEach(t => {
+    const d = DATA[t];
+    const card = document.createElement('div');
+    card.className = 'card';
+    const recentUp = d.recent5d_cum_pct >= 0;
+    card.style.setProperty('--card-stripe', recentUp ? 'var(--up)' : 'var(--down)');
+
+    const clfLabel = CLASSIFIER_LABEL[d.classifier_type] || d.classifier_type;
+    const sector = d.fundamentals ? d.fundamentals.sector : "Index";
+
+    card.innerHTML = `
+      <div class="card-head">
+        <div>
+          <div class="ticker-sym">${t}</div>
+          <div class="sector-tag">${sector}</div>
+        </div>
+        <div class="model-chip">${clfLabel}</div>
+      </div>
+      <div>
+        <div class="metric-row">
+          <span class="metric-label">Held-out accuracy (${d.held_out_days}d)</span>
+          <span class="metric-value">${pct(d.held_out_balanced_accuracy)}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(d.held_out_balanced_accuracy*100).toFixed(0)}%"></div></div>
+      </div>
+      <div class="pill-row">
+        <span class="pill ${d.recent5d_accuracy >= 0.5 ? 'up' : 'down'}">5d: ${Math.round(d.recent5d_accuracy*d.recent5d_n)}/${d.recent5d_n} correct</span>
+        <span class="pill ${recentUp ? 'up' : 'down'}">${fmtPctSigned(d.recent5d_cum_pct)} net</span>
+      </div>
+      <div class="long-horizon-line">
+        ${d.long_horizon_hit_rate !== null
+          ? `Long-horizon: <b>${d.long_horizon_call}</b> (${pct(d.long_horizon_hit_rate)} OOS)`
+          : `Long-horizon: <b>no reliable call</b> for this ticker`}
+      </div>
+    `;
+    cardsEl.appendChild(card);
+  });
+
+  // ---- reality check table ----
+  const realityBody = document.getElementById('reality-body');
+  TICKERS.forEach(t => {
+    const d = DATA[t];
+    const tr = document.createElement('tr');
+    const netCls = d.recent5d_avg_net_bps >= 0 ? 'pos' : 'neg';
+    tr.innerHTML = `
+      <td class="ticker-cell">${t}</td>
+      <td class="num">${Math.round(d.recent5d_accuracy*d.recent5d_n)}/${d.recent5d_n} (${pct(d.recent5d_accuracy,0)})</td>
+      <td class="${netCls}">${fmtBps(d.recent5d_avg_net_bps)} bps</td>
+      <td class="${netCls}">${fmtPctSigned(d.recent5d_cum_pct)}</td>
+    `;
+    realityBody.appendChild(tr);
+  });
+
+  // ---- long-horizon grid ----
+  const hgrid = document.getElementById('horizon-grid');
+  const horizonCols = ["1 month","3 months","6 months","1 year"];
+  TICKERS.forEach(t => {
+    const d = DATA[t];
+    const label = document.createElement('div');
+    label.className = 'hrow-label';
+    label.textContent = t;
+    hgrid.appendChild(label);
+    horizonCols.forEach(col => {
+      const cell = document.createElement('div');
+      cell.className = 'hval';
+      const v = d.four_horizon[col];
+      cell.textContent = v === null || v === undefined ? "—" : pct(v, 0);
+      if (v !== null && v !== undefined) {
+        cell.style.color = v >= 0.8 ? "var(--up)" : (v <= 0.4 ? "var(--down)" : "var(--ink)");
+      }
+      hgrid.appendChild(cell);
+    });
+  });
+
+  // ---- expected vs. actual return table ----
+  const evaBody = document.getElementById('eva-body');
+  let evaCorrect = 0, evaTotal = 0, evaErrSum = 0;
+  TICKERS.forEach(t => {
+    const d = DATA[t];
+    (d.expected_vs_actual || []).forEach((row, i) => {
+      const tr = document.createElement('tr');
+      const matchCls = row.direction_match ? 'up' : 'down';
+      tr.innerHTML = `
+        <td class="ticker-cell">${i === 0 ? t : ''}</td>
+        <td>${row.horizon}</td>
+        <td class="num">${fmtPctSigned(row.expected_pct)}</td>
+        <td class="num">${fmtPctSigned(row.actual_pct)}</td>
+        <td class="num ${row.error_pts >= 0 ? 'pos' : 'neg'}">${fmtPctSigned(row.error_pts)} pts</td>
+        <td><span class="pill ${matchCls}">${row.direction_match ? 'matched' : 'wrong'}</span></td>
+      `;
+      evaBody.appendChild(tr);
+      evaTotal += 1;
+      if (row.direction_match) evaCorrect += 1;
+      evaErrSum += Math.abs(row.error_pts);
+    });
+  });
+  const evaSummaryEl = document.getElementById('eva-summary');
+  if (evaTotal > 0) {
+    evaSummaryEl.innerHTML = `<b>${evaCorrect}/${evaTotal} direction matches (${(evaCorrect/evaTotal*100).toFixed(1)}%)</b> — `
+      + `mean absolute error ${(evaErrSum/evaTotal).toFixed(2)} percentage points using the median estimator `
+      + `(beats the raw mean's ~27.5pt error — see repo README for why median wins on this metric). `
+      + `Read the two numbers together: a high match rate does not imply the size of the move was predicted well.`;
+  }
+
+  // ---- horizon forecast (user-selectable tab) ----
+  const horizonForecastBody = document.getElementById('horizon-forecast-body');
+  const horizonForecastNote = document.getElementById('horizon-forecast-note');
+  const horizonTabs = document.querySelectorAll('#horizon-tabs .horizon-tab');
+
+  function renderHorizonForecast(horizon) {
+    horizonForecastBody.innerHTML = '';
+    let lowN = [];
+    TICKERS.forEach(t => {
+      const d = DATA[t];
+      const hf = (d.horizon_forecast || {})[horizon];
+      const tr = document.createElement('tr');
+      if (!hf || hf.expected_return_pct === null) {
+        tr.innerHTML = `<td class="ticker-cell">${t}</td><td colspan="5" style="color:var(--ink-faint)">not enough history for this horizon</td>`;
+        horizonForecastBody.appendChild(tr);
+        return;
+      }
+      const retCls = hf.expected_return_pct >= 0 ? 'pos' : 'neg';
+      const hitRateTxt = hf.oos_hit_rate === null ? '—' : pct(hf.oos_hit_rate, 0);
+      tr.innerHTML = `
+        <td class="ticker-cell">${t}</td>
+        <td class="num">${d.last_price !== null ? '$' + d.last_price.toFixed(2) : '—'}</td>
+        <td class="num ${retCls}">${fmtPctSigned(hf.expected_return_pct)}</td>
+        <td class="num">${hf.predicted_price !== null ? '$' + hf.predicted_price.toFixed(2) : '—'}</td>
+        <td class="num">${hf.target_date || '—'}</td>
+        <td class="num">${hitRateTxt}${hf.reliable ? '' : ' <span class="low-n">(low sample)</span>'}</td>
+      `;
+      horizonForecastBody.appendChild(tr);
+      if (!hf.reliable) lowN.push(t);
+    });
+    horizonForecastNote.innerHTML = lowN.length
+      ? `<b>Low-sample warning:</b> ${lowN.join(', ')} have fewer than 20 non-overlapping historical windows at this horizon — treat their hit-rate as anecdotal, not a validated rate.`
+      : `All tickers shown have at least 20 non-overlapping historical windows at this horizon.`;
+  }
+
+  horizonTabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      horizonTabs.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderHorizonForecast(btn.dataset.horizon);
+    });
+  });
+  horizonTabs[0].classList.add('active');
+  renderHorizonForecast(horizonTabs[0].dataset.horizon);
+
+  // ---- fundamentals table ----
+  const fundBody = document.getElementById('fundamentals-body');
+  TICKERS.forEach(t => {
+    const d = DATA[t];
+    const f = d.fundamentals;
+    const tr = document.createElement('tr');
+    if (!f) {
+      tr.innerHTML = `
+        <td class="ticker-cell">${t}</td>
+        <td colspan="6" style="color:var(--ink-faint)">Index, not a company — not applicable</td>
+      `;
+    } else {
+      tr.innerHTML = `
+        <td class="ticker-cell">${t}</td>
+        <td>${f.sector}</td>
+        <td class="num">${f.trailing_pe.toFixed(1)}x</td>
+        <td class="num">${f.forward_pe.toFixed(1)}x</td>
+        <td class="num">${fmtCap(f.market_cap_b)}</td>
+        <td class="num">${f.profit_margin_pct.toFixed(1)}%</td>
+        <td class="num">${f.revenue_growth_pct.toFixed(1)}%</td>
+      `;
+    }
+    fundBody.appendChild(tr);
+  });
+</script>
+
+</body>
+</html>

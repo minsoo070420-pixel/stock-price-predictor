@@ -27,10 +27,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 import yfinance as yf
 from backtest_dates import backtest_ticker
 from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TEST_FRACTION, TICKERS
-from features import FEATURE_COLUMNS, make_dataset
+from features import make_dataset
 from fetch_data import fetch_all, fetch_macro_all
 from long_horizon_drift import analyze_ticker, most_recent_completed_window
 from macro_features import build_macro_features
+from news_features import build_news_history, news_features_for_ticker
 from predict_long_horizon import LONG_HORIZON_CALLS
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
 
@@ -47,7 +48,7 @@ DISCLAIMER = (
 )
 
 
-def held_out_test_stats(name: str, df: pd.DataFrame, macro_df: pd.DataFrame) -> dict:
+def held_out_test_stats(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, news_df: pd.DataFrame) -> dict:
     """Re-evaluates the ticker's actual saved production models on the same
     held-out test split train.py uses -- the most reliable long-run number
     available, since it's hundreds of days rather than a handful."""
@@ -56,7 +57,10 @@ def held_out_test_stats(name: str, df: pd.DataFrame, macro_df: pd.DataFrame) -> 
     reg = joblib.load(MODELS_DIR / f"{name}_regressor.joblib")
     clf = joblib.load(MODELS_DIR / f"{name}_classifier.joblib")
 
-    X, y_ret, y_dir, _ = make_dataset(df, macro_df=macro_df, feature_columns=FEATURE_COLUMNS)
+    # feature_columns=None so make_dataset joins the full macro+news superset --
+    # each model then only reads its own manifest columns below, so this works
+    # regardless of which feature set (baseline/macro/macro+news) actually won.
+    X, y_ret, y_dir, _ = make_dataset(df, macro_df=macro_df, news_df=news_df, feature_columns=None)
     split = int(len(X) * (1 - TEST_FRACTION))
     X_test, y_ret_test, y_dir_test = X.iloc[split:], y_ret.iloc[split:], y_dir.iloc[split:]
 
@@ -76,8 +80,8 @@ def held_out_test_stats(name: str, df: pd.DataFrame, macro_df: pd.DataFrame) -> 
     }
 
 
-def recent_backtest_stats(name: str, macro_df: pd.DataFrame) -> dict:
-    df = backtest_ticker(name, None, RECENT_BACKTEST_DAYS, macro_df)
+def recent_backtest_stats(name: str, macro_df: pd.DataFrame, news_daily: pd.DataFrame) -> dict:
+    df = backtest_ticker(name, None, RECENT_BACKTEST_DAYS, macro_df, news_daily)
     scored = df.dropna(subset=["direction_correct"])
     if scored.empty:
         return {"recent_accuracy": None, "recent_net_bps_per_trade": None, "recent_cumulative_pct": None}
@@ -149,12 +153,16 @@ def main():
     data = fetch_all()
     macro_df = build_macro_features(fetch_macro_all())
 
+    any_df = next(iter(data.values()))
+    news_daily = build_news_history(any_df.index.min().strftime("%Y-%m"), any_df.index.max().strftime("%Y-%m"))
+
     rows = []
     for name in TICKERS.values():
         df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
+        news_df = news_features_for_ticker(news_daily, name)
         row = {"ticker": name}
-        row.update(held_out_test_stats(name, df, macro_df))
-        row.update(recent_backtest_stats(name, macro_df))
+        row.update(held_out_test_stats(name, df, macro_df, news_df))
+        row.update(recent_backtest_stats(name, macro_df, news_daily))
         row.update(long_horizon_stats(name))
         rows.append(row)
 

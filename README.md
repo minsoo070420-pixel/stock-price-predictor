@@ -804,11 +804,51 @@ row here, that is a historical statistic, not a forecast, and specifically
 not a recommendation — the whole rest of this README is the explanation of
 why that distinction actually matters here, not boilerplate.
 
+## Publishing the dashboard (`site/`)
+
+A static, publishable snapshot of the current numbers — same content as the
+Part 2 comparison tool, presented as a page instead of a terminal table.
+`site/index.html` is plain HTML/CSS/JS with the data baked in at build time;
+nothing on the deployed page runs Python, trains anything, or calls any API.
+
+To refresh it after retraining or re-running the comparison tools:
+
+```bash
+python src/dashboard/build_dashboard_data.py  # reads reports/*.csv -> src/dashboard/dashboard_data.json
+python src/dashboard/build_site.py            # bakes that + today's date into site/index.html
+```
+
+Deployed on Vercel as a static site via the root `vercel.json`
+(`"framework": null` forces the "Other"/static preset — without it, Vercel
+auto-detects the root `requirements.txt` as a Python app and looks for a
+serverless entrypoint that doesn't exist here, since this project has never
+been a web service). `outputDirectory: "site"` points Vercel at the built
+page; nothing else in the repo gets deployed.
+
+### Horizon selector (3 / 6 / 9 / 12 months)
+
+The dashboard's "Today's forecast at a horizon you choose" section lets a
+viewer pick one of four horizons and see, per ticker: the historical median
+forward return at that horizon (computed fresh as of the latest close, via
+`long_horizon_drift.py`'s new `live_horizon_forecast()`), the implied price,
+the target date, and that horizon's own out-of-sample hit rate. This is the
+**same buy-and-hold-drift methodology** as the rest of the long-horizon
+sections above it — explicitly not the day-to-day models the rest of the
+engine uses, and not a signal about what's about to happen. Low-sample
+horizons (frequently 9/12 months, where under-20-window reliability is rare
+given ~10 years of history) are flagged inline rather than presented at the
+same confidence as a well-sampled 3-month figure. All four horizons' data is
+baked into the page at build time (`live_horizon_forecast.csv` →
+`dashboard_data.json`); the tab switch itself is a client-side table swap,
+no server or API call involved.
+
 ## Extending this
 
-- Pay for a historical news/sentiment archive (NewsAPI historical tier,
-  RavenPack, Refinitiv) to properly backtest a news-driven feature instead of
-  only showing it live.
+- ~~Pay for a historical news/sentiment archive to properly backtest a
+  news-driven feature instead of only showing it live~~ — done, for free: the
+  NYT Archive API turned out to be exactly that source. See "NYT news-sentiment
+  features" above. A domain-specific (finance) sentiment model instead of
+  general-purpose VADER remains a real next step, though.
 - Multi-fold walk-forward evaluation (several rolling train/test windows,
   not just one final holdout) for the *reported* metric, not just for
   hyperparameter tuning — would show how stable these accuracy numbers are

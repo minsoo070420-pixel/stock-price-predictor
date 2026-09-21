@@ -207,6 +207,61 @@ def expected_vs_actual_return(name: str, anchor_days_ago: int = 252) -> pd.DataF
     return pd.DataFrame(rows)
 
 
+def live_horizon_forecast(name: str) -> pd.DataFrame:
+    """Today-anchored version of expected_vs_actual_return() -- for the
+    dashboard's horizon selector. Unlike that function, there's no realized
+    "actual" to compare against yet (these windows haven't happened), so this
+    just reports the historical forward-return distribution's point estimate
+    (median -- see _point_estimators for why) plus that horizon's own
+    out-of-sample hit rate from analyze_ticker(), same reliability framing
+    (n>=20 windows) used everywhere else in this file. Still the SAME weaker
+    claim as the rest of this module -- buy-and-hold drift, not a discovered
+    signal -- not the day-to-day models the rest of the engine uses."""
+    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
+    close = df["Close"]
+    last_date = close.index[-1]
+    last_price = float(close.iloc[-1])
+
+    hit_rates = analyze_ticker(name).set_index("horizon")
+    horizon_to_hitrate_label = {"3 months": "3 months", "6 months": "6 months",
+                                 "9 months": "9 months", "12 months": "1 year"}
+
+    rows = []
+    for label, h in EXPECTED_RETURN_HORIZONS.items():
+        fwd = (close.shift(-h) / close - 1).dropna()
+        estimators = _point_estimators(fwd)
+        median_return = estimators.get("median")
+        target_date = (last_date + pd.tseries.offsets.BDay(h)).date()
+
+        hr_label = horizon_to_hitrate_label[label]
+        hr_row = hit_rates.loc[hr_label] if hr_label in hit_rates.index else None
+
+        rows.append({
+            "ticker": name,
+            "horizon": label,
+            "as_of_date": last_date.date(),
+            "last_price": last_price,
+            "expected_return_pct": median_return * 100 if median_return is not None else None,
+            "predicted_price": last_price * (1 + median_return) if median_return is not None else None,
+            "target_date": target_date,
+            "n_historical_samples": len(fwd),
+            "oos_hit_rate": float(hr_row["test_hit_rate"]) if hr_row is not None and pd.notna(hr_row["test_hit_rate"]) else None,
+            "reliable": bool(hr_row["reliable"]) if hr_row is not None else False,
+            "effective_independent_n": int(hr_row["effective_independent_n"]) if hr_row is not None else 0,
+        })
+    return pd.DataFrame(rows)
+
+
+def run_live_horizon_forecast() -> pd.DataFrame:
+    all_rows = [live_horizon_forecast(name) for name in TICKERS.values()]
+    result = pd.concat(all_rows, ignore_index=True)
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = REPORTS_DIR / "live_horizon_forecast.csv"
+    result.to_csv(out_path, index=False)
+    print(f"Saved live (today-anchored) horizon forecast to {out_path}")
+    return result
+
+
 VERIFY_HORIZONS = {  # the specific horizons checked against actual history below
     "1 month": 21, "3 months": 63, "6 months": 126, "9 months": 189, "1 year": 252,
 }
@@ -316,6 +371,7 @@ def main():
 
     verify_predictions()
     run_expected_vs_actual()
+    run_live_horizon_forecast()
 
 
 if __name__ == "__main__":
