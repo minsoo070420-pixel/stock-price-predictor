@@ -72,6 +72,17 @@ RECENCY_HALF_LIFE_TRADING_DAYS = 504
 # safety buffer on top of that, not the primary fix.)
 CLASSIFICATION_THRESHOLD = 0.52
 
+# A single held-out test window (the ~15% split above) gives one point
+# estimate of a model's accuracy/RMSE -- it can't say whether that number is a
+# stable, real effect or just where this particular window happened to land.
+# WALK_FORWARD_STABILITY_FOLDS controls train.py's walk_forward_stability():
+# after a model+feature-set has already been picked (this constant doesn't
+# change what gets picked or shipped), it's refit across this many expanding
+# chronological windows (sklearn's TimeSeriesSplit, the same mechanism already
+# used for hyperparameter CV) and the metric's mean/std across folds is
+# reported alongside the single-window number.
+WALK_FORWARD_STABILITY_FOLDS = 4
+
 # Rough round-trip transaction cost assumptions (spread + slippage, in basis
 # points), used only to sanity-check whether backtested directional calls
 # would survive real trading frictions -- deliberately conservative-but-plausible

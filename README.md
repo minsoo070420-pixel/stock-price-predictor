@@ -293,6 +293,35 @@ Treat this as a demonstration of a correct, leakage-free ML pipeline for
 financial time series, not a working trading signal. Ideas for improvement
 are in the "Extending this" section below.
 
+### Walk-forward stability: is the single-window number real?
+
+Every metric reported elsewhere in this README — held-out balanced accuracy,
+RMSE — comes from ONE chronological train/test split. That's a single point
+estimate; it can't say whether the number reflects a real, time-stable effect
+or just where that particular window happened to land. `train.py`'s
+`walk_forward_stability()` answers that directly: it re-fits the *already-
+shipped* model (same class, same tuned hyperparameters — not a new search)
+across 4 expanding chronological windows spanning each ticker's full history,
+and reports the metric's mean and standard deviation across those folds.
+
+**Honest result — and it's a real downgrade in confidence.** For the
+classifiers, the walk-forward mean balanced accuracy across 8 tickers
+averages **~51.1%**, clustering close to 50% for most tickers, even though
+the single-window numbers reported elsewhere in this README range 51-59%.
+PLTR is the clearest example: single-window balanced accuracy 58.7%,
+walk-forward mean **52.0% ± 3.3%** across folds — most of that apparent edge
+does not hold up once evaluated across multiple time windows instead of one.
+Regressors tell a similar story for most tickers: walk-forward mean RMSE is
+higher (worse) than the single-window number for 6 of 8 tickers (GOOGL and
+MSFT are the stable exceptions, where the two numbers roughly agree).
+
+This does not change which models are shipped — `walk_forward_stability()`
+is purely a reporting/confidence check, run after model selection, and never
+feeds back into it. What it changes is how much confidence to put in the
+single-window numbers quoted throughout the rest of this document: less than
+they look at face value. Full per-ticker table:
+`reports/walk_forward_stability.csv`.
+
 ### Did the optimization actually help?
 
 For the regressors: modestly. Feature selection, tuning, and ensembling

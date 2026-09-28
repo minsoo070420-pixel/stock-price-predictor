@@ -33,6 +33,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import (
     HistGradientBoostingClassifier,
@@ -67,6 +68,7 @@ from config import (
     REPORTS_DIR,
     TEST_FRACTION,
     TICKERS,
+    WALK_FORWARD_STABILITY_FOLDS,
 )
 from baselines import PersistenceClassifier, PersistenceRegressor
 from features import FEATURE_COLUMNS, FEATURE_COLUMNS_WITH_NEWS, OWN_FEATURE_COLUMNS, make_dataset
@@ -333,6 +335,54 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
     }
 
 
+def walk_forward_stability(X: pd.DataFrame, y: pd.Series, task: str, model_name: str,
+                            model_template, feature_columns: list[str],
+                            n_folds: int = WALK_FORWARD_STABILITY_FOLDS) -> dict:
+    """Answers a question the single held-out split above cannot: is the
+    model's reported metric a stable, time-consistent effect, or does it swing
+    around depending on which window happens to get tested? Re-fits the
+    ALREADY-CHOSEN model -- same class and hyperparameters, via sklearn's
+    clone() -- across several expanding chronological windows spanning this
+    ticker's FULL history (TimeSeriesSplit, the same splitting mechanism
+    already used for hyperparameter CV, just with more/larger folds here),
+    and reports the metric's mean and standard deviation across folds.
+
+    Deliberately narrower and cheaper than a full multi-fold re-run of
+    feature selection + hyperparameter search + model selection (which would
+    multiply this project's already-substantial tuning cost by n_folds, for
+    every candidate, every feature set): this only asks whether the ONE
+    model/feature-set combination that's actually about to be shipped holds
+    up across time, not whether a different one would have won in a
+    different window -- that remains governed by the single split in
+    run_task(). A high std relative to the single-window number is itself an
+    important, honest finding, not a bug to explain away."""
+    Xc = X[feature_columns]
+    splitter = TimeSeriesSplit(n_splits=n_folds)
+    fold_scores = []
+    for train_idx, test_idx in splitter.split(Xc):
+        if len(test_idx) < 10:
+            continue
+        X_train, X_test = Xc.iloc[train_idx], Xc.iloc[test_idx]
+        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        model = clone(model_template)
+        sw = recency_weights(len(X_train)) if "recency_weighted" in model_name else None
+        if task == "regression":
+            metrics, _, _ = evaluate_regression(model_name, model, X_train, y_train, X_test, y_test, sample_weight=sw)
+            fold_scores.append(metrics["rmse"])
+        else:
+            metrics, _ = evaluate_classification(model_name, model, X_train, y_train, X_test, y_test, sample_weight=sw)
+            fold_scores.append(metrics["balanced_accuracy"])
+
+    if not fold_scores:
+        return {"n_folds": 0, "mean": None, "std": None, "fold_scores": []}
+    return {
+        "n_folds": len(fold_scores),
+        "mean": float(np.mean(fold_scores)),
+        "std": float(np.std(fold_scores)),
+        "fold_scores": fold_scores,
+    }
+
+
 def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list[str], label: str, news_df=None):
     X, y_ret, y_dir, close = make_dataset(df, macro_df=macro_df, news_df=news_df, feature_columns=feature_columns)
     parts, split = chrono_split(X, y_ret, y_dir)
@@ -360,10 +410,12 @@ def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list
         "label": label,
         "reg": reg, "clf": clf,
         "X_test": X_test, "close_test": close_test,
+        "X": X, "y_ret": y_ret, "y_dir": y_dir,
     }
 
 
-def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, news_df: pd.DataFrame, summary_rows: list):
+def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, news_df: pd.DataFrame, summary_rows: list,
+                      stability_rows: list):
     print(f"\n=== {name} ===")
     baseline = run_feature_set(name, df, None, OWN_FEATURE_COLUMNS, "baseline: own technical features only")
     enhanced = run_feature_set(name, df, macro_df, FEATURE_COLUMNS, "enhanced: + macro/cross-market features")
@@ -392,6 +444,35 @@ def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, news_d
         json.dump(feature_manifest, f, indent=2)
     print(f"  saved best regressor ({reg_pick['reg']['best_name']}) and "
           f"classifier ({clf_pick['clf']['best_name']}) to models/")
+
+    reg_stability = walk_forward_stability(
+        reg_pick["X"], reg_pick["y_ret"], "regression",
+        reg_pick["reg"]["best_name"], reg_pick["reg"]["best_model"], reg_pick["reg"]["feature_columns"],
+    )
+    clf_stability = walk_forward_stability(
+        clf_pick["X"], clf_pick["y_dir"], "classification",
+        clf_pick["clf"]["best_name"], clf_pick["clf"]["best_model"], clf_pick["clf"]["feature_columns"],
+    )
+    if reg_stability["n_folds"]:
+        print(f"  walk-forward stability (regressor, {reg_stability['n_folds']} folds over full history): "
+              f"RMSE {reg_stability['mean']:.5f} +/- {reg_stability['std']:.5f}  "
+              f"(single-window: {reg_pick['reg']['best_metric']:.5f})")
+    if clf_stability["n_folds"]:
+        print(f"  walk-forward stability (classifier, {clf_stability['n_folds']} folds over full history): "
+              f"balanced accuracy {clf_stability['mean']:.1%} +/- {clf_stability['std']:.1%}  "
+              f"(single-window: {clf_pick['clf']['best_metric']:.1%})")
+    stability_rows.append({
+        "ticker": name, "task": "regression", "model": reg_pick["reg"]["best_name"],
+        "single_window_metric": reg_pick["reg"]["best_metric"],
+        "walk_forward_mean": reg_stability["mean"], "walk_forward_std": reg_stability["std"],
+        "n_folds": reg_stability["n_folds"],
+    })
+    stability_rows.append({
+        "ticker": name, "task": "classification", "model": clf_pick["clf"]["best_name"],
+        "single_window_metric": clf_pick["clf"]["best_metric"],
+        "walk_forward_mean": clf_stability["mean"], "walk_forward_std": clf_stability["std"],
+        "n_folds": clf_stability["n_folds"],
+    })
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     plot_path = REPORTS_DIR / f"{name}_predictions.png"
@@ -430,10 +511,11 @@ def main():
     news_daily = build_news_history(news_start, news_end)
 
     summary_rows = []
+    stability_rows = []
     comparisons = []
     for name in TICKERS.values():
         news_df = news_features_for_ticker(news_daily, name)
-        comparisons.append(train_for_ticker(name, data[name], macro_df, news_df, summary_rows))
+        comparisons.append(train_for_ticker(name, data[name], macro_df, news_df, summary_rows, stability_rows))
 
     summary = pd.DataFrame(summary_rows)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -441,9 +523,18 @@ def main():
     summary.to_csv(summary_path, index=False)
     print(f"\nSaved full model comparison table to {summary_path}")
 
+    stability = pd.DataFrame(stability_rows)
+    stability_path = REPORTS_DIR / "walk_forward_stability.csv"
+    stability.to_csv(stability_path, index=False)
+    print(f"Saved walk-forward stability table to {stability_path}")
+
     comp_df = pd.DataFrame(comparisons).set_index("ticker")
     print("\n=== Final result per ticker ===")
     print(comp_df.to_string())
+
+    print(f"\n=== Walk-forward stability ({WALK_FORWARD_STABILITY_FOLDS} folds each, full history) ===")
+    print("(is the single-window metric above a stable effect, or does it swing across time windows?)")
+    print(stability.to_string(index=False))
 
 
 if __name__ == "__main__":
