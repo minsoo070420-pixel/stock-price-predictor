@@ -190,6 +190,22 @@
   .horizon-tab.active { background: var(--accent); border-color: var(--accent); color: var(--surface); }
   .low-n { color: var(--ink-faint); font-size: 11px; }
 
+  /* ---------- horizon track-record strip ---------- */
+  .track-record {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    font-size: 12.5px; padding: 10px 14px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface-2);
+  }
+  .track-record .tr-stat { font-family: var(--mono); font-weight: 700; }
+  .track-record.tr-poor { border-color: var(--down); background: var(--down-soft); color: var(--down); }
+  .track-record.tr-poor .tr-stat { color: var(--down); }
+  .track-record.tr-mixed { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+  .track-record.tr-mixed .tr-stat { color: var(--accent-ink); }
+  .wrong-direction-flag {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 999px;
+    background: var(--down-soft); color: var(--down); margin-left: 6px; white-space: nowrap;
+  }
+
   footer {
     border-top: 1px solid var(--border); padding-top: 24px; display: flex; flex-direction: column; gap: 10px;
   }
@@ -294,6 +310,7 @@
       <button class="horizon-tab" data-horizon="9 months" type="button">9 months</button>
       <button class="horizon-tab" data-horizon="12 months" type="button">12 months</button>
     </div>
+    <div class="track-record" id="horizon-track-record"></div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -484,9 +501,27 @@ __DATA_JSON__
   // ---- horizon forecast (user-selectable tab) ----
   const horizonForecastBody = document.getElementById('horizon-forecast-body');
   const horizonForecastNote = document.getElementById('horizon-forecast-note');
+  const horizonTrackRecordEl = document.getElementById('horizon-track-record');
   const horizonTabs = document.querySelectorAll('#horizon-tabs .horizon-tab');
+  const HORIZON_TRACK_RECORD = DATA['_horizon_track_record'] || {};
+
+  function renderTrackRecord(horizon) {
+    const tr = HORIZON_TRACK_RECORD[horizon];
+    horizonTrackRecordEl.classList.remove('tr-poor', 'tr-mixed');
+    if (!tr) {
+      horizonTrackRecordEl.innerHTML = `No backtested track record available for this horizon yet.`;
+      return;
+    }
+    if (tr.direction_match_rate < 0.5) horizonTrackRecordEl.classList.add('tr-poor');
+    else if (tr.direction_match_rate < 0.7) horizonTrackRecordEl.classList.add('tr-mixed');
+    horizonTrackRecordEl.innerHTML =
+      `<span>Historical track record at this horizon (median method, ${tr.n} ticker-instances, one-year backtest):</span>` +
+      `<span class="tr-stat">±${tr.mae_pts.toFixed(1)} pts</span><span>mean error</span>` +
+      `<span class="tr-stat">${Math.round(tr.direction_match_rate * tr.n)}/${tr.n}</span><span>direction correct (${pct(tr.direction_match_rate, 0)})</span>`;
+  }
 
   function renderHorizonForecast(horizon) {
+    renderTrackRecord(horizon);
     horizonForecastBody.innerHTML = '';
     let lowN = [];
     TICKERS.forEach(t => {
@@ -500,8 +535,10 @@ __DATA_JSON__
       }
       const retCls = hf.expected_return_pct >= 0 ? 'pos' : 'neg';
       const hitRateTxt = hf.oos_hit_rate === null ? '—' : pct(hf.oos_hit_rate, 0);
+      const wrongFlag = hf.historical_direction_correct === false
+        ? '<span class="wrong-direction-flag">✗ wrong last year</span>' : '';
       tr.innerHTML = `
-        <td class="ticker-cell">${t}</td>
+        <td class="ticker-cell">${t}${wrongFlag}</td>
         <td class="num">${d.last_price !== null ? '$' + d.last_price.toFixed(2) : '—'}</td>
         <td class="num ${retCls}">${fmtPctSigned(hf.expected_return_pct)}</td>
         <td class="num">${hf.predicted_price !== null ? '$' + hf.predicted_price.toFixed(2) : '—'}</td>

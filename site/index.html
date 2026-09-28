@@ -195,6 +195,22 @@
   .horizon-tab.active { background: var(--accent); border-color: var(--accent); color: var(--surface); }
   .low-n { color: var(--ink-faint); font-size: 11px; }
 
+  /* ---------- horizon track-record strip ---------- */
+  .track-record {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    font-size: 12.5px; padding: 10px 14px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface-2);
+  }
+  .track-record .tr-stat { font-family: var(--mono); font-weight: 700; }
+  .track-record.tr-poor { border-color: var(--down); background: var(--down-soft); color: var(--down); }
+  .track-record.tr-poor .tr-stat { color: var(--down); }
+  .track-record.tr-mixed { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+  .track-record.tr-mixed .tr-stat { color: var(--accent-ink); }
+  .wrong-direction-flag {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 999px;
+    background: var(--down-soft); color: var(--down); margin-left: 6px; white-space: nowrap;
+  }
+
   footer {
     border-top: 1px solid var(--border); padding-top: 24px; display: flex; flex-direction: column; gap: 10px;
   }
@@ -302,6 +318,7 @@
       <button class="horizon-tab" data-horizon="9 months" type="button">9 months</button>
       <button class="horizon-tab" data-horizon="12 months" type="button">12 months</button>
     </div>
+    <div class="track-record" id="horizon-track-record"></div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -346,11 +363,11 @@
     "held_out_days": 368,
     "classifier_type": "RandomForestClassifier",
     "regressor_type": "HistGradientBoostingRegressor",
-    "recent5d_accuracy": 0.8,
-    "recent5d_correct": 4,
+    "recent5d_accuracy": 0.2,
+    "recent5d_correct": 1,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": 36.14562335258742,
-    "recent5d_cum_pct": 1.807281167629371,
+    "recent5d_avg_net_bps": -56.67061631537517,
+    "recent5d_cum_pct": -2.833530815768759,
     "long_horizon_call": "UP over 2 months",
     "long_horizon_hit_rate": 0.866,
     "four_horizon": {
@@ -362,88 +379,96 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 4.325659578642349,
-        "actual_pct": 3.0287737015607163,
-        "error_pts": -1.2968858770816327,
+        "expected_pct": 4.331204943361544,
+        "actual_pct": 4.094923830946229,
+        "error_pts": -0.2362811124153152,
         "direction_match": true,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
         "expected_pct": 7.383786600368958,
-        "actual_pct": 0.0930274398767139,
-        "error_pts": -7.290759160492244,
-        "direction_match": true,
-        "target_date": "2026-03-19"
+        "actual_pct": -2.4225787912417585,
+        "error_pts": -9.806365391610717,
+        "direction_match": false,
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 10.314647111324982,
-        "actual_pct": 13.639124700194571,
-        "error_pts": 3.32447758886959,
+        "expected_pct": 10.295290554922945,
+        "actual_pct": 10.787180139589635,
+        "error_pts": 0.4918895846666937,
         "direction_match": true,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
         "expected_pct": 14.351698964642344,
-        "actual_pct": 15.910518181704523,
-        "error_pts": 1.5588192170621795,
+        "actual_pct": 16.65328263953758,
+        "error_pts": 2.3015836748952356,
         "direction_match": true,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": null,
     "horizon_forecast": {
       "3 months": {
         "expected_return_pct": 4.336296967983411,
-        "predicted_price": 7982.248399535571,
-        "target_date": "2026-12-16",
+        "predicted_price": 8079.187416073988,
+        "target_date": "2026-12-23",
         "oos_hit_rate": 0.9047619047619048,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": -0.2362811124153152,
+        "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 7.810972447109865,
-        "predicted_price": 8248.07844706614,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 7.814251083358248,
+        "predicted_price": 8348.499668273638,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.9523809523809524,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": -9.806365391610717,
+        "historical_direction_correct": false
       },
       "9 months": {
         "expected_return_pct": 11.143044420914627,
-        "predicted_price": 8502.998613422074,
-        "target_date": "2027-06-10",
+        "predicted_price": 8606.261789654553,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": 0.4918895846666937,
+        "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 14.99615938598905,
-        "predicted_price": 8797.781173825091,
-        "target_date": "2027-09-07",
+        "expected_return_pct": 15.00341451611461,
+        "predicted_price": 8905.186079675104,
+        "target_date": "2027-09-14",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": 2.3015836748952356,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 7650.5
+    "last_price": 7743.41015625
   },
   "AAPL": {
     "held_out_balanced_accuracy": 0.5113312766967252,
     "held_out_days": 368,
     "classifier_type": "PersistenceClassifier",
     "regressor_type": "Pipeline",
-    "recent5d_accuracy": 0.4,
-    "recent5d_correct": 2,
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": 18.08236111884998,
-    "recent5d_cum_pct": 0.9041180559424989,
+    "recent5d_avg_net_bps": -21.70433516542813,
+    "recent5d_cum_pct": -1.0852167582714065,
     "long_horizon_call": "UP over 6 months",
     "long_horizon_hit_rate": 0.976,
     "four_horizon": {
@@ -455,35 +480,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 6.793654278156714,
-        "actual_pct": 15.015758606675387,
-        "error_pts": 8.222104328518675,
+        "expected_pct": 6.9130051867346225,
+        "actual_pct": 8.051221609889826,
+        "error_pts": 1.1382164231552028,
         "direction_match": true,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 12.719009096678558,
-        "actual_pct": 4.370275413869273,
-        "error_pts": -8.348733682809284,
+        "expected_pct": 12.676210763054453,
+        "actual_pct": 0.4209224529669431,
+        "error_pts": -12.255288310087508,
         "direction_match": true,
-        "target_date": "2026-03-19"
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 21.346303296758904,
-        "actual_pct": 25.04836010136875,
-        "error_pts": 3.702056804609843,
+        "expected_pct": 21.301088660184178,
+        "actual_pct": 12.79094986072744,
+        "error_pts": -8.510138799456735,
         "direction_match": true,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 26.293139491864626,
-        "actual_pct": 41.16558706337008,
-        "error_pts": 14.872447571505454,
+        "expected_pct": 26.16713196607987,
+        "actual_pct": 35.67830246578796,
+        "error_pts": 9.511170499708088,
         "direction_match": true,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -497,54 +522,62 @@
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 7.0858263583130965,
-        "predicted_price": 359.9475933669979,
-        "target_date": "2026-12-16",
-        "oos_hit_rate": 0.8,
+        "expected_return_pct": 7.12565368240794,
+        "predicted_price": 365.373474860706,
+        "target_date": "2026-12-23",
+        "oos_hit_rate": 0.8158730158730159,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": 1.1382164231552028,
+        "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 13.686708995092475,
-        "predicted_price": 382.1351404963132,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 13.686705471823355,
+        "predicted_price": 387.7512546794109,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.9761904761904762,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": -12.255288310087508,
+        "historical_direction_correct": true
       },
       "9 months": {
-        "expected_return_pct": 21.693012183903605,
-        "predicted_price": 409.0467277957968,
-        "target_date": "2027-06-10",
+        "expected_return_pct": 21.693004244800346,
+        "predicted_price": 415.0583384908023,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": -8.510138799456735,
+        "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 26.003132293674515,
-        "predicted_price": 423.5343347312248,
-        "target_date": "2027-09-07",
+        "expected_return_pct": 26.003139193800028,
+        "predicted_price": 429.7589160770393,
+        "target_date": "2027-09-14",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": 9.511170499708088,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 336.1300048828125
+    "last_price": 341.07000732421875
   },
   "PLTR": {
     "held_out_balanced_accuracy": 0.5825757575757575,
     "held_out_days": 218,
     "classifier_type": "PersistenceClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.6,
-    "recent5d_correct": 3,
+    "recent5d_accuracy": 0.8,
+    "recent5d_correct": 4,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": 9.976336717039798,
-    "recent5d_cum_pct": 0.49881683585198994,
+    "recent5d_avg_net_bps": 125.65131695217535,
+    "recent5d_cum_pct": 6.282565847608768,
     "long_horizon_call": "none reliable (see long_horizon_drift.py)",
     "long_horizon_hit_rate": null,
     "four_horizon": {
@@ -556,35 +589,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 10.081371869937117,
-        "actual_pct": 11.536860902809408,
-        "error_pts": 1.4554890328722925,
+        "expected_pct": 10.259963475814136,
+        "actual_pct": 8.114283538829014,
+        "error_pts": -2.145679936985123,
         "direction_match": true,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 22.847453947514275,
-        "actual_pct": -7.515005654173102,
-        "error_pts": -30.362459601687377,
+        "expected_pct": 23.93806530946334,
+        "actual_pct": -17.82134129822418,
+        "error_pts": -41.75940660768752,
         "direction_match": false,
-        "target_date": "2026-03-19"
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 59.988839030313336,
-        "actual_pct": -23.6796769302939,
-        "error_pts": -83.66851596060724,
+        "expected_pct": 60.56502728482515,
+        "actual_pct": -37.10737255477817,
+        "error_pts": -97.67239983960332,
         "direction_match": false,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 80.74192672805951,
-        "actual_pct": 5.530801079618453,
-        "error_pts": -75.21112564844105,
+        "expected_pct": 83.07997722023164,
+        "actual_pct": 5.630430356322802,
+        "error_pts": -77.44954686390884,
         "direction_match": true,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -598,54 +631,62 @@
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 7.270360318046764,
-        "predicted_price": 190.5550674142519,
-        "target_date": "2026-12-16",
-        "oos_hit_rate": 0.2962962962962963,
+        "expected_return_pct": 7.312500476837158,
+        "predicted_price": 203.53961768946647,
+        "target_date": "2026-12-23",
+        "oos_hit_rate": 0.3251533742331288,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 1436
+        "n_historical_samples": 1441,
+        "historical_error_pts": -2.145679936985123,
+        "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 16.28909601555508,
-        "predicted_price": 206.57594945225972,
-        "target_date": "2027-03-15",
-        "oos_hit_rate": 0.3333333333333333,
+        "expected_return_pct": 17.330460455379626,
+        "predicted_price": 222.54068219733364,
+        "target_date": "2027-03-22",
+        "oos_hit_rate": 0.38,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 1373
+        "n_historical_samples": 1378,
+        "historical_error_pts": -41.75940660768752,
+        "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 49.03058442467667,
-        "predicted_price": 264.73792926238514,
-        "target_date": "2027-06-10",
-        "oos_hit_rate": 0.3333333333333333,
+        "expected_return_pct": 48.2061280262674,
+        "predicted_price": 281.1025603136861,
+        "target_date": "2027-06-17",
+        "oos_hit_rate": 0.3513513513513513,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 1310
+        "n_historical_samples": 1315,
+        "historical_error_pts": -97.67239983960332,
+        "historical_direction_correct": false
       },
       "12 months": {
-        "expected_return_pct": 74.81707770224497,
-        "predicted_price": 310.5450557632692,
-        "target_date": "2027-09-07",
+        "expected_return_pct": 74.1137866592958,
+        "predicted_price": 330.2416159685677,
+        "target_date": "2027-09-14",
         "oos_hit_rate": null,
         "reliable": false,
         "effective_independent_n": 0,
-        "n_historical_samples": 1247
+        "n_historical_samples": 1252,
+        "historical_error_pts": -77.44954686390884,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 177.63999938964844
+    "last_price": 189.6699981689453
   },
   "MSFT": {
     "held_out_balanced_accuracy": 0.5073390151515151,
     "held_out_days": 368,
     "classifier_type": "PersistenceClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.2,
-    "recent5d_correct": 1,
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": -56.78673950976476,
-    "recent5d_cum_pct": -2.8393369754882376,
+    "recent5d_avg_net_bps": -28.929320486260167,
+    "recent5d_cum_pct": -1.4464660243130083,
     "long_horizon_call": "none reliable (see long_horizon_drift.py)",
     "long_horizon_hit_rate": null,
     "four_horizon": {
@@ -657,35 +698,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 7.553248622114084,
-        "actual_pct": -6.419033644702054,
-        "error_pts": -13.97228226681614,
+        "expected_pct": 7.535106021738502,
+        "actual_pct": -4.38867397028705,
+        "error_pts": -11.923779992025551,
         "direction_match": false,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 16.294868004438314,
-        "actual_pct": -23.407378145920177,
-        "error_pts": -39.70224615035849,
+        "expected_pct": 16.33751666682588,
+        "actual_pct": -27.96396830215162,
+        "error_pts": -44.3014849689775,
         "direction_match": false,
-        "target_date": "2026-03-19"
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 25.930781627641142,
-        "actual_pct": -25.139634505479115,
-        "error_pts": -51.070416133120254,
+        "expected_pct": 25.87062479049962,
+        "actual_pct": -26.42710914037779,
+        "error_pts": -52.29773393087741,
         "direction_match": false,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 34.29142618831689,
-        "actual_pct": -2.3876153606371853,
-        "error_pts": -36.679041548954075,
-        "direction_match": false,
-        "target_date": "2026-09-18"
+        "expected_pct": 34.26032006168804,
+        "actual_pct": 2.012517476439779,
+        "error_pts": -32.247802585248266,
+        "direction_match": true,
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -699,54 +740,62 @@
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 6.65249353062054,
-        "predicted_price": 526.6286812535877,
-        "target_date": "2026-12-16",
+        "expected_return_pct": 6.6524887893651075,
+        "predicted_price": 550.5081331573222,
+        "target_date": "2026-12-23",
         "oos_hit_rate": 0.5301587301587302,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": -11.923779992025551,
+        "historical_direction_correct": false
       },
       "6 months": {
-        "expected_return_pct": 15.786790381388894,
-        "predicted_price": 571.7320121318091,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 15.824269281993177,
+        "predicted_price": 597.8501109586774,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.3928571428571428,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": -44.3014849689775,
+        "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 23.6182783887684,
-        "predicted_price": 610.4023335190484,
-        "target_date": "2027-06-10",
+        "expected_return_pct": 23.503147127164613,
+        "predicted_price": 637.4861734197907,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 0.2751322751322751,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": -52.29773393087741,
+        "historical_direction_correct": false
       },
       "12 months": {
-        "expected_return_pct": 31.99651884705368,
-        "predicted_price": 651.772409151696,
-        "target_date": "2027-09-07",
-        "oos_hit_rate": 0.1984126984126984,
+        "expected_return_pct": 31.97681813118611,
+        "predicted_price": 681.2247195931113,
+        "target_date": "2027-09-14",
+        "oos_hit_rate": 0.2063492063492063,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": -32.247802585248266,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 493.7799987792969
+    "last_price": 516.1699829101562
   },
   "GOOGL": {
     "held_out_balanced_accuracy": 0.5356328645447817,
     "held_out_days": 368,
     "classifier_type": "Pipeline",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 1.0,
-    "recent5d_correct": 5,
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": 101.88424759586245,
-    "recent5d_cum_pct": 5.094212379793123,
+    "recent5d_avg_net_bps": -33.38553673326439,
+    "recent5d_cum_pct": -1.6692768366632194,
     "long_horizon_call": "UP over 6 months",
     "long_horizon_hit_rate": 0.984,
     "four_horizon": {
@@ -758,35 +807,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 6.6176707133014485,
-        "actual_pct": 22.939339684511697,
-        "error_pts": 16.321668971210247,
+        "expected_pct": 6.695441403552927,
+        "actual_pct": 27.278314214060018,
+        "error_pts": 20.58287281050709,
         "direction_match": true,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 9.433511743283464,
-        "actual_pct": 23.25060624020472,
-        "error_pts": 13.817094496921255,
+        "expected_pct": 9.513099379794076,
+        "actual_pct": 13.822789536622327,
+        "error_pts": 4.30969015682825,
         "direction_match": true,
-        "target_date": "2026-03-19"
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 16.643819607021683,
-        "actual_pct": 47.77785904646245,
-        "error_pts": 31.134039439440777,
+        "expected_pct": 16.643801758636812,
+        "actual_pct": 36.78488431187888,
+        "error_pts": 20.14108255324206,
         "direction_match": true,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 24.22026312189296,
-        "actual_pct": 40.44365385614017,
-        "error_pts": 16.22339073424721,
+        "expected_pct": 24.29607328241865,
+        "actual_pct": 39.521908187623154,
+        "error_pts": 15.225834905204504,
         "direction_match": true,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -801,42 +850,50 @@
     "horizon_forecast": {
       "3 months": {
         "expected_return_pct": 7.151354523716713,
-        "predicted_price": 374.53685375819896,
-        "target_date": "2026-12-16",
-        "oos_hit_rate": 0.7777777777777778,
+        "predicted_price": 368.51495286596577,
+        "target_date": "2026-12-23",
+        "oos_hit_rate": 0.7746031746031746,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": 20.58287281050709,
+        "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 11.021341074910174,
-        "predicted_price": 388.0640050799279,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 11.091704694819915,
+        "predicted_price": 382.0666057035237,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.984126984126984,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": 4.30969015682825,
+        "historical_direction_correct": true
       },
       "9 months": {
-        "expected_return_pct": 18.609051176378166,
-        "predicted_price": 414.586087616963,
-        "target_date": "2027-06-10",
+        "expected_return_pct": 18.570637682434143,
+        "predicted_price": 407.7881530387778,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": 20.14108255324206,
+        "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 27.207742193582597,
-        "predicted_price": 444.6419529332508,
-        "target_date": "2027-09-07",
+        "expected_return_pct": 27.278251749113704,
+        "predicted_price": 437.73538050613735,
+        "target_date": "2027-09-14",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": 15.225834905204504,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 349.5400085449219
+    "last_price": 343.9200134277344
   },
   "AMZN": {
     "held_out_balanced_accuracy": 0.5243563595518903,
@@ -846,8 +903,8 @@
     "recent5d_accuracy": 0.4,
     "recent5d_correct": 2,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": -24.0811528728374,
-    "recent5d_cum_pct": -1.2040576436418702,
+    "recent5d_avg_net_bps": -59.74391508145236,
+    "recent5d_cum_pct": -2.987195754072618,
     "long_horizon_call": "UP over 6 months",
     "long_horizon_hit_rate": 0.812,
     "four_horizon": {
@@ -859,35 +916,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 6.642536304380653,
-        "actual_pct": -3.9115783393440906,
-        "error_pts": -10.554114643724745,
-        "direction_match": false,
-        "target_date": "2025-12-16"
+        "expected_pct": 6.732604953955656,
+        "actual_pct": 5.417552478113596,
+        "error_pts": -1.31505247584206,
+        "direction_match": true,
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 10.784688185116533,
-        "actual_pct": -9.86961449454553,
-        "error_pts": -20.654302679662063,
+        "expected_pct": 10.844831990857507,
+        "actual_pct": -5.753604759749786,
+        "error_pts": -16.59843675060729,
         "direction_match": false,
-        "target_date": "2026-03-19"
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 16.368754336383994,
-        "actual_pct": 5.513342777682029,
-        "error_pts": -10.855411558701968,
+        "expected_pct": 16.1845683745915,
+        "actual_pct": 5.667315447546906,
+        "error_pts": -10.517252927044597,
         "direction_match": true,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 23.559677416944385,
-        "actual_pct": 9.537178163527416,
-        "error_pts": -14.022499253416964,
+        "expected_pct": 23.793197943239797,
+        "actual_pct": 13.37813476085914,
+        "error_pts": -10.415063182380656,
         "direction_match": true,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -901,43 +958,51 @@
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 5.953063028177197,
-        "predicted_price": 268.8135233223363,
-        "target_date": "2026-12-16",
+        "expected_return_pct": 6.125226106154225,
+        "predicted_price": 264.9628500760243,
+        "target_date": "2026-12-23",
         "oos_hit_rate": 0.653968253968254,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": -1.31505247584206,
+        "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 10.263233374676062,
-        "predicted_price": 279.7488567978177,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 10.51400407003218,
+        "predicted_price": 275.9203119380775,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.8134920634920635,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": -16.59843675060729,
+        "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 14.65403769348217,
-        "predicted_price": 290.88876672985344,
-        "target_date": "2027-06-10",
+        "expected_return_pct": 14.488263439109604,
+        "predicted_price": 285.84284523208225,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 0.873015873015873,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": -10.517252927044597,
+        "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 19.844480055845615,
-        "predicted_price": 304.0574383958852,
-        "target_date": "2027-09-07",
+        "expected_return_pct": 19.787377790718057,
+        "predicted_price": 299.07314393671334,
+        "target_date": "2027-09-14",
         "oos_hit_rate": 0.9603174603174603,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": -10.415063182380656,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 253.7100067138672
+    "last_price": 249.6699981689453
   },
   "NVDA": {
     "held_out_balanced_accuracy": 0.555920241617357,
@@ -947,8 +1012,8 @@
     "recent5d_accuracy": 0.6,
     "recent5d_correct": 3,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": -20.377234758829466,
-    "recent5d_cum_pct": -1.0188617379414735,
+    "recent5d_avg_net_bps": -2.6285822024857404,
+    "recent5d_cum_pct": -0.131429110124287,
     "long_horizon_call": "UP over 3 months",
     "long_horizon_hit_rate": 0.815,
     "four_horizon": {
@@ -960,35 +1025,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 15.907846396609605,
-        "actual_pct": 4.368959420672036,
-        "error_pts": -11.538886975937569,
+        "expected_pct": 15.907851174072274,
+        "actual_pct": 6.922386554546289,
+        "error_pts": -8.985464619525985,
         "direction_match": true,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 34.57189252737809,
-        "actual_pct": 4.867924162245463,
-        "error_pts": -29.703968365132628,
-        "direction_match": true,
-        "target_date": "2026-03-19"
+        "expected_pct": 34.571889126596524,
+        "actual_pct": -3.227208274784865,
+        "error_pts": -37.79909740138139,
+        "direction_match": false,
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 54.25445891514461,
-        "actual_pct": 23.88203586812068,
-        "error_pts": -30.372423047023933,
+        "expected_pct": 53.615632619798845,
+        "actual_pct": 8.931204736034504,
+        "error_pts": -44.68442788376434,
         "direction_match": true,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 81.15561391061699,
-        "actual_pct": 30.83711143677632,
-        "error_pts": -50.31850247384067,
+        "expected_pct": 80.78162341376229,
+        "actual_pct": 27.484450120335136,
+        "error_pts": -53.29717329342716,
         "direction_match": true,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -1002,54 +1067,62 @@
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 13.788905199223825,
-        "predicted_price": 252.91860444790137,
-        "target_date": "2026-12-16",
+        "expected_return_pct": 13.693984428186102,
+        "predicted_price": 255.89105907971455,
+        "target_date": "2026-12-23",
         "oos_hit_rate": 0.8126984126984127,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": -8.985464619525985,
+        "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 30.028897505517985,
-        "predicted_price": 289.0152360409487,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 29.83645513966812,
+        "predicted_price": 292.222919092357,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.9126984126984128,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": -37.79909740138139,
+        "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 49.26370619867988,
-        "predicted_price": 331.7684461450394,
-        "target_date": "2027-06-10",
+        "expected_return_pct": 48.97974687319984,
+        "predicted_price": 335.30872719911343,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 0.9894179894179894,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": -44.68442788376434,
+        "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 71.65437698157362,
-        "predicted_price": 381.5361910508099,
-        "target_date": "2027-09-07",
+        "expected_return_pct": 71.2194223437267,
+        "predicted_price": 385.3635664095107,
+        "target_date": "2027-09-14",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": -53.29717329342716,
+        "historical_direction_correct": true
       }
     },
-    "last_price": 222.27000427246097
+    "last_price": 225.07000732421875
   },
   "META": {
     "held_out_balanced_accuracy": 0.5393617021276595,
     "held_out_days": 368,
     "classifier_type": "HistGradientBoostingClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.4,
-    "recent5d_correct": 2,
+    "recent5d_accuracy": 0.6,
+    "recent5d_correct": 3,
     "recent5d_n": 5,
-    "recent5d_avg_net_bps": 52.17197012044471,
-    "recent5d_cum_pct": 2.6085985060222354,
+    "recent5d_avg_net_bps": 194.43022076051338,
+    "recent5d_cum_pct": 9.72151103802567,
     "long_horizon_call": "none reliable (see long_horizon_drift.py)",
     "long_horizon_hit_rate": null,
     "four_horizon": {
@@ -1061,35 +1134,35 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 7.140370498299998,
-        "actual_pct": -15.158830481224284,
-        "error_pts": -22.29920097952428,
+        "expected_pct": 7.173154385703007,
+        "actual_pct": -12.512502494863142,
+        "error_pts": -19.68565688056615,
         "direction_match": false,
-        "target_date": "2025-12-16"
+        "target_date": "2025-12-23"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 13.292581792811964,
-        "actual_pct": -21.60510399651023,
-        "error_pts": -34.897685789322196,
+        "expected_pct": 13.421219172000786,
+        "actual_pct": -27.897380472204027,
+        "error_pts": -41.31859964420481,
         "direction_match": false,
-        "target_date": "2026-03-19"
+        "target_date": "2026-03-26"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 23.779594501072012,
-        "actual_pct": -25.345249247367978,
-        "error_pts": -49.124843748439986,
+        "expected_pct": 23.85180476066333,
+        "actual_pct": -27.47335639141063,
+        "error_pts": -51.32516115207396,
         "direction_match": false,
-        "target_date": "2026-06-18"
+        "target_date": "2026-06-26"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 29.72607566010972,
-        "actual_pct": -13.895217012290216,
-        "error_pts": -43.62129267239994,
+        "expected_pct": 29.76575589539507,
+        "actual_pct": -0.8479837520503408,
+        "error_pts": -30.613739647445417,
         "direction_match": false,
-        "target_date": "2026-09-18"
+        "target_date": "2026-09-25"
       }
     ],
     "fundamentals": {
@@ -1103,43 +1176,73 @@
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 5.409617745246464,
-        "predicted_price": 701.7645301389783,
-        "target_date": "2026-12-16",
+        "expected_return_pct": 5.482846866673485,
+        "predicted_price": 792.872338430125,
+        "target_date": "2026-12-23",
         "oos_hit_rate": 0.4634920634920635,
         "reliable": true,
         "effective_independent_n": 5,
-        "n_historical_samples": 2451
+        "n_historical_samples": 2451,
+        "historical_error_pts": -19.68565688056615,
+        "historical_direction_correct": false
       },
       "6 months": {
-        "expected_return_pct": 11.165023253076525,
-        "predicted_price": 740.081142307357,
-        "target_date": "2027-03-15",
+        "expected_return_pct": 11.28977582943106,
+        "predicted_price": 836.5206991121106,
+        "target_date": "2027-03-22",
         "oos_hit_rate": 0.25,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 2388
+        "n_historical_samples": 2388,
+        "historical_error_pts": -41.31859964420481,
+        "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 21.333628617178245,
-        "predicted_price": 807.7786325188641,
-        "target_date": "2027-06-10",
+        "expected_return_pct": 21.3336416783968,
+        "predicted_price": 912.0164184551192,
+        "target_date": "2027-06-17",
         "oos_hit_rate": 0.2804232804232804,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325
+        "n_historical_samples": 2325,
+        "historical_error_pts": -51.32516115207396,
+        "historical_direction_correct": false
       },
       "12 months": {
-        "expected_return_pct": 25.18433328317927,
-        "predicted_price": 833.4146988327661,
-        "target_date": "2027-09-07",
-        "oos_hit_rate": 0.238095238095238,
+        "expected_return_pct": 24.98027287017548,
+        "predicted_price": 939.4266854919229,
+        "target_date": "2027-09-14",
+        "oos_hit_rate": 0.2301587301587301,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262
+        "n_historical_samples": 2262,
+        "historical_error_pts": -30.613739647445417,
+        "historical_direction_correct": false
       }
     },
-    "last_price": 665.75
+    "last_price": 751.6599731445312
+  },
+  "_horizon_track_record": {
+    "12 months": {
+      "mae_pts": 28.88273933152727,
+      "direction_match_rate": 0.875,
+      "n": 8
+    },
+    "3 months": {
+      "mae_pts": 8.25162553137781,
+      "direction_match_rate": 0.75,
+      "n": 8
+    },
+    "6 months": {
+      "mae_pts": 26.018546153923126,
+      "direction_match_rate": 0.25,
+      "n": 8
+    },
+    "9 months": {
+      "mae_pts": 35.70501083384114,
+      "direction_match_rate": 0.625,
+      "n": 8
+    }
   }
 }
 </script>
@@ -1147,7 +1250,7 @@
   const DATA = JSON.parse(document.getElementById('data').textContent);
   const TICKERS = ["SP500","AAPL","PLTR","MSFT","GOOGL","AMZN","NVDA","META"];
 
-  document.getElementById('asof-date').textContent = "Sep 21, 2026";
+  document.getElementById('asof-date').textContent = "Sep 28, 2026";
 
   const CLASSIFIER_LABEL = {
     "PersistenceClassifier": "Persistence (momentum)",
@@ -1293,9 +1396,27 @@
   // ---- horizon forecast (user-selectable tab) ----
   const horizonForecastBody = document.getElementById('horizon-forecast-body');
   const horizonForecastNote = document.getElementById('horizon-forecast-note');
+  const horizonTrackRecordEl = document.getElementById('horizon-track-record');
   const horizonTabs = document.querySelectorAll('#horizon-tabs .horizon-tab');
+  const HORIZON_TRACK_RECORD = DATA['_horizon_track_record'] || {};
+
+  function renderTrackRecord(horizon) {
+    const tr = HORIZON_TRACK_RECORD[horizon];
+    horizonTrackRecordEl.classList.remove('tr-poor', 'tr-mixed');
+    if (!tr) {
+      horizonTrackRecordEl.innerHTML = `No backtested track record available for this horizon yet.`;
+      return;
+    }
+    if (tr.direction_match_rate < 0.5) horizonTrackRecordEl.classList.add('tr-poor');
+    else if (tr.direction_match_rate < 0.7) horizonTrackRecordEl.classList.add('tr-mixed');
+    horizonTrackRecordEl.innerHTML =
+      `<span>Historical track record at this horizon (median method, ${tr.n} ticker-instances, one-year backtest):</span>` +
+      `<span class="tr-stat">±${tr.mae_pts.toFixed(1)} pts</span><span>mean error</span>` +
+      `<span class="tr-stat">${Math.round(tr.direction_match_rate * tr.n)}/${tr.n}</span><span>direction correct (${pct(tr.direction_match_rate, 0)})</span>`;
+  }
 
   function renderHorizonForecast(horizon) {
+    renderTrackRecord(horizon);
     horizonForecastBody.innerHTML = '';
     let lowN = [];
     TICKERS.forEach(t => {
@@ -1309,8 +1430,10 @@
       }
       const retCls = hf.expected_return_pct >= 0 ? 'pos' : 'neg';
       const hitRateTxt = hf.oos_hit_rate === null ? '—' : pct(hf.oos_hit_rate, 0);
+      const wrongFlag = hf.historical_direction_correct === false
+        ? '<span class="wrong-direction-flag">✗ wrong last year</span>' : '';
       tr.innerHTML = `
-        <td class="ticker-cell">${t}</td>
+        <td class="ticker-cell">${t}${wrongFlag}</td>
         <td class="num">${d.last_price !== null ? '$' + d.last_price.toFixed(2) : '—'}</td>
         <td class="num ${retCls}">${fmtPctSigned(hf.expected_return_pct)}</td>
         <td class="num">${hf.predicted_price !== null ? '$' + hf.predicted_price.toFixed(2) : '—'}</td>
