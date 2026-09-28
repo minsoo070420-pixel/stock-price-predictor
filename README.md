@@ -257,6 +257,16 @@ against this one — not just asserted, actually tested where that's possible:
    move inside the window (a +29% day), so a 30-day average there is not a
    reliable estimate — exactly the kind of fat-tail sensitivity that makes
    "backtest looked profitable" a weak claim on its own.
+
+   **Update**: `backtest_dates.py` also reports a drawdown/stop-out stat now
+   — `drawdown_stats()` builds the cost-adjusted cumulative net-return curve
+   from the same simulated trades above, tracks its running peak, and reports
+   the worst peak-to-trough drawdown plus whether (and when) an
+   `MAX_DRAWDOWN_STOP_PCT`-sized circuit breaker (`config.py`, 8% by default)
+   would have triggered. This is purely historical bookkeeping on an existing
+   backtest — no trade is placed, automated, or connected to any exchange
+   anywhere in this project; the answer is only ever "would this rule have
+   fired, and when," read off a number this project already computes.
 6. **Missing values in event data are often informative, not random.**
    `news_pulse.py` already avoided imputing a neutral score for "no news";
    tightened further to distinguish three states explicitly: `had_news=True`

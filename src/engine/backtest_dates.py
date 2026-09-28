@@ -20,7 +20,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TICKERS, TRANSACTION_COST_BPS
+from config import (
+    CLASSIFICATION_THRESHOLD,
+    DATA_DIR,
+    MAX_DRAWDOWN_STOP_PCT,
+    MODELS_DIR,
+    REPORTS_DIR,
+    TICKERS,
+    TRANSACTION_COST_BPS,
+)
 from features import build_features
 from fetch_data import fetch_macro_all
 from macro_features import align_macro_to_ticker, build_macro_features
@@ -108,6 +116,36 @@ def backtest_ticker(name: str, target_dates: list[str] | None, lookback_days: in
     return pd.DataFrame(rows)
 
 
+def drawdown_stats(scored_ticker_df: pd.DataFrame) -> pd.DataFrame:
+    """Purely historical/descriptive: builds the cost-adjusted cumulative net-
+    return equity curve from backtest_ticker's own net_return_bps column (long
+    on UP, short on DOWN, same simulated trade as the reality-check section),
+    then reports the running drawdown from that curve's own running peak.
+
+    This does NOT execute or automate anything -- it's the same "would this
+    have made money" backtest already computed, read one more way: "how bad
+    would the worst losing stretch inside this window have looked, and would
+    a max_drawdown_pct stop-out rule (MAX_DRAWDOWN_STOP_PCT in config.py) have
+    triggered, and on what date." One row per ticker."""
+    rows = []
+    for name, g in scored_ticker_df.groupby("ticker"):
+        g = g.sort_values("date").reset_index(drop=True)
+        cum_net_pct = g["net_return_bps"].cumsum() / 100  # bps -> %, simple (non-compounded) running sum
+        running_peak = cum_net_pct.cummax()
+        drawdown_pct = cum_net_pct - running_peak  # <= 0 at every point
+
+        breach = drawdown_pct.index[drawdown_pct <= -MAX_DRAWDOWN_STOP_PCT]
+        stopped_on = g.loc[breach[0], "date"] if len(breach) else None
+
+        rows.append({
+            "ticker": name,
+            "max_drawdown_pct": float(drawdown_pct.min()),
+            "stop_threshold_pct": -MAX_DRAWDOWN_STOP_PCT,
+            "would_have_stopped_on": stopped_on,
+        })
+    return pd.DataFrame(rows)
+
+
 def plot_ticker(name: str, df: pd.DataFrame):
     d = df.dropna(subset=["actual_close", "predicted_close"])
     if d.empty:
@@ -176,10 +214,21 @@ def main():
               f"{net:+.1f} bps/trade net  |  {pct_profitable:.0%} of days net-profitable  |  "
               f"cumulative over window: {cum_net_pct:+.2f}%")
 
+    print(f"\n--- Risk check: max drawdown & hypothetical {MAX_DRAWDOWN_STOP_PCT:.0f}% stop-out ---")
+    print("(purely historical -- \"would a max-drawdown circuit breaker have triggered, and when,\" "
+          "not a live stop-loss; nothing here is executed or automated)")
+    dd = drawdown_stats(scored)
+    for _, r in dd.iterrows():
+        stop_note = "never breached the threshold" if pd.isna(r["would_have_stopped_on"]) \
+            else f"would have stopped on {r['would_have_stopped_on']}"
+        print(f"  {r['ticker']:<6}: max drawdown {r['max_drawdown_pct']:+.2f}%  |  {stop_note}")
+
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / "backtest_recent.csv"
     result.to_csv(out_path, index=False)
-    print(f"\nSaved full results to {out_path}")
+    dd_out_path = REPORTS_DIR / "backtest_drawdown.csv"
+    dd.to_csv(dd_out_path, index=False)
+    print(f"\nSaved full results to {out_path} and drawdown stats to {dd_out_path}")
     return result
 
 

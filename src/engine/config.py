@@ -89,6 +89,14 @@ TRANSACTION_COST_BPS = {
     "META": 3,
 }
 
+# Purely descriptive, purely historical -- "what would a max-drawdown circuit
+# breaker have done to the backtested equity curve," not a live stop-loss on
+# any real position. No trades are placed or automated anywhere in this
+# project; this only answers "would this rule have triggered, and when,"
+# checked against backtest_dates.py's cost-adjusted net-return series. A
+# round, illustrative threshold, not researched for any specific strategy.
+MAX_DRAWDOWN_STOP_PCT = 8.0
+
 HISTORY_PERIOD = "10y"   # how much history to download
 INTERVAL = "1d"
 TEST_FRACTION = 0.15     # last 15% of trading days held out as test set, chronologically
