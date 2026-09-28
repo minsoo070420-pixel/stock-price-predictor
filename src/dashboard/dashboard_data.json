@@ -1,18 +1,18 @@
 {
   "SP500": {
-    "held_out_balanced_accuracy": 0.53475983839593,
+    "held_out_balanced_accuracy": 0.5438126589854856,
     "held_out_days": 368,
     "classifier_type": "RandomForestClassifier",
-    "regressor_type": "HistGradientBoostingRegressor",
-    "recent5d_accuracy": 0.2,
-    "recent5d_correct": 1,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": -56.67061631537517,
-    "recent5d_cum_pct": -2.833530815768759,
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.6333333333333333,
+    "recent5d_correct": 19,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": 8.435284176309272,
+    "recent5d_cum_pct": 2.5305852528927817,
     "long_horizon_call": "UP over 2 months",
     "long_horizon_hit_rate": 0.866,
     "four_horizon": {
-      "1 month": 0.7443820224719101,
+      "1 month": 0.7556179775280899,
       "3 months": 0.9044585987261148,
       "6 months": 0.952191235059761,
       "1 year": 1.0
@@ -20,645 +20,645 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 4.331204943361544,
-        "actual_pct": 4.094923830946229,
-        "error_pts": -0.2362811124153152,
+        "expected_pct": 4.709990809805364,
+        "actual_pct": 4.9559947915446045,
+        "error_pts": 0.2460039817392401,
         "direction_match": true,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 7.383786600368958,
-        "actual_pct": -2.4225787912417585,
-        "error_pts": -9.806365391610717,
+        "expected_pct": 7.636570207583437,
+        "actual_pct": -3.5712355635806436,
+        "error_pts": -11.20780577116408,
         "direction_match": false,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 10.295290554922945,
-        "actual_pct": 10.787180139589635,
-        "error_pts": 0.4918895846666937,
+        "expected_pct": 11.012436007977634,
+        "actual_pct": 12.653222752105188,
+        "error_pts": 1.6407867441275537,
         "direction_match": true,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 14.351698964642344,
-        "actual_pct": 16.65328263953758,
-        "error_pts": 2.3015836748952356,
+        "expected_pct": 15.62354049840322,
+        "actual_pct": 16.687609558356954,
+        "error_pts": 1.0640690599537317,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": null,
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 4.336296967983411,
-        "predicted_price": 8079.187416073988,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.9047619047619048,
+        "expected_return_pct": 4.487037785070225,
+        "predicted_price": 8052.701209207171,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.9044585987261148,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": -0.2362811124153152,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": 0.2460039817392401,
         "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 7.814251083358248,
-        "predicted_price": 8348.499668273638,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.9523809523809524,
+        "expected_return_pct": 8.865482657983993,
+        "predicted_price": 8390.14314525943,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.952191235059761,
         "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": -9.806365391610717,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2387,
+        "historical_error_pts": -11.20780577116408,
         "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 11.143044420914627,
-        "predicted_price": 8606.261789654553,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 1.0,
-        "reliable": true,
-        "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": 0.4918895846666937,
-        "historical_direction_correct": true
-      },
-      "12 months": {
-        "expected_return_pct": 15.00341451611461,
-        "predicted_price": 8905.186079675104,
-        "target_date": "2027-09-14",
+        "expected_return_pct": 12.599180748581528,
+        "predicted_price": 8677.895155138547,
+        "target_date": "2027-06-18",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": 2.3015836748952356,
+        "n_historical_samples": 2324,
+        "historical_error_pts": 1.6407867441275537,
+        "historical_direction_correct": true
+      },
+      "12 months": {
+        "expected_return_pct": 16.85795040396474,
+        "predicted_price": 9006.113853654848,
+        "target_date": "2027-09-15",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2261,
+        "historical_error_pts": 1.0640690599537317,
         "historical_direction_correct": true
       }
     },
-    "last_price": 7743.41015625
+    "last_price": 7706.89013671875
   },
   "AAPL": {
-    "held_out_balanced_accuracy": 0.5113312766967252,
+    "held_out_balanced_accuracy": 0.5206505902292529,
     "held_out_days": 368,
-    "classifier_type": "PersistenceClassifier",
-    "regressor_type": "Pipeline",
-    "recent5d_accuracy": 0.6,
-    "recent5d_correct": 3,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": -21.70433516542813,
-    "recent5d_cum_pct": -1.0852167582714065,
+    "classifier_type": "Pipeline",
+    "regressor_type": "RandomForestRegressor",
+    "recent5d_accuracy": 0.5333333333333333,
+    "recent5d_correct": 16,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": 34.08950058138934,
+    "recent5d_cum_pct": 10.226850174416802,
     "long_horizon_call": "UP over 6 months",
     "long_horizon_hit_rate": 0.976,
     "four_horizon": {
-      "1 month": 0.651685393258427,
-      "3 months": 0.8057324840764332,
+      "1 month": 0.6657303370786517,
+      "3 months": 0.821656050955414,
       "6 months": 0.9760956175298804,
       "1 year": 1.0
     },
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 6.9130051867346225,
-        "actual_pct": 8.051221609889826,
-        "error_pts": 1.1382164231552028,
+        "expected_pct": 4.649567272400118,
+        "actual_pct": 6.698101080616614,
+        "error_pts": 2.0485338082164963,
         "direction_match": true,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 12.676210763054453,
-        "actual_pct": 0.4209224529669431,
-        "error_pts": -12.255288310087508,
-        "direction_match": true,
-        "target_date": "2026-03-26"
+        "expected_pct": 7.630370792908522,
+        "actual_pct": -2.957052459666176,
+        "error_pts": -10.587423252574698,
+        "direction_match": false,
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 21.301088660184178,
-        "actual_pct": 12.79094986072744,
-        "error_pts": -8.510138799456735,
+        "expected_pct": 12.815831757887992,
+        "actual_pct": 9.99223957440243,
+        "error_pts": -2.8235921834855655,
         "direction_match": true,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 26.16713196607987,
-        "actual_pct": 35.67830246578796,
-        "error_pts": 9.511170499708088,
+        "expected_pct": 16.994869301084712,
+        "actual_pct": 33.80502443437015,
+        "error_pts": 16.81015513328543,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 38.549942,
-      "forward_pe": 35.017624,
-      "market_cap_b": 4900.287676416,
-      "price_to_book": 45.620922,
+      "trailing_pe": 39.207607,
+      "forward_pe": 35.70891,
+      "market_cap_b": 4995.331129344,
+      "price_to_book": 46.50576,
       "profit_margin_pct": 27.618998,
       "revenue_growth_pct": 16.400000000000002,
       "sector": "Technology"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 7.12565368240794,
-        "predicted_price": 365.373474860706,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.8158730158730159,
+        "expected_return_pct": 5.529597627073415,
+        "predicted_price": 361.3755566905564,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.821656050955414,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": 1.1382164231552028,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": 2.0485338082164963,
         "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 13.686705471823355,
-        "predicted_price": 387.7512546794109,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.9761904761904762,
-        "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": -12.255288310087508,
-        "historical_direction_correct": true
-      },
-      "9 months": {
-        "expected_return_pct": 21.693004244800346,
-        "predicted_price": 415.0583384908023,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 1.0,
+        "expected_return_pct": 9.942292268550773,
+        "predicted_price": 376.4863883285632,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.9760956175298804,
         "reliable": true,
         "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": -8.510138799456735,
-        "historical_direction_correct": true
+        "n_historical_samples": 2387,
+        "historical_error_pts": -10.587423252574698,
+        "historical_direction_correct": false
       },
-      "12 months": {
-        "expected_return_pct": 26.003139193800028,
-        "predicted_price": 429.7589160770393,
-        "target_date": "2027-09-14",
+      "9 months": {
+        "expected_return_pct": 15.450035449260795,
+        "predicted_price": 395.3471042110531,
+        "target_date": "2027-06-18",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": 9.511170499708088,
+        "n_historical_samples": 2324,
+        "historical_error_pts": -2.8235921834855655,
+        "historical_direction_correct": true
+      },
+      "12 months": {
+        "expected_return_pct": 18.33748520031467,
+        "predicted_price": 405.2348872090563,
+        "target_date": "2027-09-15",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2261,
+        "historical_error_pts": 16.81015513328543,
         "historical_direction_correct": true
       }
     },
-    "last_price": 341.07000732421875
+    "last_price": 342.44000244140625
   },
   "PLTR": {
-    "held_out_balanced_accuracy": 0.5825757575757575,
-    "held_out_days": 218,
+    "held_out_balanced_accuracy": 0.588963963963964,
+    "held_out_days": 219,
     "classifier_type": "PersistenceClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.8,
-    "recent5d_correct": 4,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": 125.65131695217535,
-    "recent5d_cum_pct": 6.282565847608768,
+    "recent5d_accuracy": 0.5666666666666667,
+    "recent5d_correct": 17,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": -10.811578104916464,
+    "recent5d_cum_pct": -3.243473431474939,
     "long_horizon_call": "none reliable (see long_horizon_drift.py)",
     "long_horizon_hit_rate": null,
     "four_horizon": {
-      "1 month": 0.4166666666666667,
-      "3 months": 0.3024691358024691,
-      "6 months": 0.3434343434343434,
+      "1 month": 0.4390243902439024,
+      "3 months": 0.3312883435582822,
+      "6 months": 0.39,
       "1 year": null
     },
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 10.259963475814136,
-        "actual_pct": 8.114283538829014,
-        "error_pts": -2.145679936985123,
+        "expected_pct": 13.36925278134542,
+        "actual_pct": 8.402190409792887,
+        "error_pts": -4.967062371552533,
         "direction_match": true,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 23.93806530946334,
-        "actual_pct": -17.82134129822418,
-        "error_pts": -41.75940660768752,
+        "expected_pct": 23.194193451796945,
+        "actual_pct": -20.13175443366993,
+        "error_pts": -43.32594788546687,
         "direction_match": false,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 60.56502728482515,
-        "actual_pct": -37.10737255477817,
-        "error_pts": -97.67239983960332,
+        "expected_pct": 30.074171333930156,
+        "actual_pct": -35.40643138553761,
+        "error_pts": -65.48060271946777,
         "direction_match": false,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 83.07997722023164,
-        "actual_pct": 5.630430356322802,
-        "error_pts": -77.44954686390884,
+        "expected_pct": 32.21194767933535,
+        "actual_pct": 5.155761981966123,
+        "error_pts": -27.05618569736923,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 154.41026,
-      "forward_pe": 77.77046,
-      "market_cap_b": 434.136547328,
-      "price_to_book": 44.41003,
+      "trailing_pe": 159.1229,
+      "forward_pe": 80.82902,
+      "market_cap_b": 451.21028096,
+      "price_to_book": 46.15659,
       "profit_margin_pct": 49.005002,
       "revenue_growth_pct": 92.8,
       "sector": "Technology"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 7.312500476837158,
-        "predicted_price": 203.53961768946647,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.3251533742331288,
+        "expected_return_pct": 8.303180703495855,
+        "predicted_price": 203.9944513868585,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.3312883435582822,
         "reliable": true,
         "effective_independent_n": 2,
-        "n_historical_samples": 1441,
-        "historical_error_pts": -2.145679936985123,
+        "n_historical_samples": 1442,
+        "historical_error_pts": -4.967062371552533,
         "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 17.330460455379626,
-        "predicted_price": 222.54068219733364,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.38,
+        "expected_return_pct": 15.772895200166486,
+        "predicted_price": 218.06403180792185,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.39,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 1378,
-        "historical_error_pts": -41.75940660768752,
+        "n_historical_samples": 1379,
+        "historical_error_pts": -43.32594788546687,
         "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 48.2061280262674,
-        "predicted_price": 281.1025603136861,
-        "target_date": "2027-06-17",
+        "expected_return_pct": 24.12804534876044,
+        "predicted_price": 233.80137451333547,
+        "target_date": "2027-06-18",
         "oos_hit_rate": 0.3513513513513513,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 1315,
-        "historical_error_pts": -97.67239983960332,
+        "n_historical_samples": 1316,
+        "historical_error_pts": -65.48060271946777,
         "historical_direction_correct": false
       },
       "12 months": {
-        "expected_return_pct": 74.1137866592958,
-        "predicted_price": 330.2416159685677,
-        "target_date": "2027-09-14",
+        "expected_return_pct": 30.24846108029343,
+        "predicted_price": 245.329483302972,
+        "target_date": "2027-09-15",
         "oos_hit_rate": null,
         "reliable": false,
         "effective_independent_n": 0,
-        "n_historical_samples": 1252,
-        "historical_error_pts": -77.44954686390884,
+        "n_historical_samples": 1253,
+        "historical_error_pts": -27.05618569736923,
         "historical_direction_correct": true
       }
     },
-    "last_price": 189.6699981689453
+    "last_price": 188.35499572753903
   },
   "MSFT": {
-    "held_out_balanced_accuracy": 0.5073390151515151,
+    "held_out_balanced_accuracy": 0.5199407846039971,
     "held_out_days": 368,
-    "classifier_type": "PersistenceClassifier",
+    "classifier_type": "HistGradientBoostingClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.6,
-    "recent5d_correct": 3,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": -28.929320486260167,
-    "recent5d_cum_pct": -1.4464660243130083,
+    "recent5d_accuracy": 0.4666666666666667,
+    "recent5d_correct": 14,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": 16.905125907699436,
+    "recent5d_cum_pct": 5.071537772309831,
     "long_horizon_call": "none reliable (see long_horizon_drift.py)",
     "long_horizon_hit_rate": null,
     "four_horizon": {
-      "1 month": 0.5393258426966292,
+      "1 month": 0.5449438202247191,
       "3 months": 0.5286624203821656,
       "6 months": 0.3904382470119522,
-      "1 year": 0.2
+      "1 year": 0.216
     },
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 7.535106021738502,
-        "actual_pct": -4.38867397028705,
-        "error_pts": -11.923779992025551,
+        "expected_pct": 5.539803000804016,
+        "actual_pct": -3.56914229739258,
+        "error_pts": -9.108945298196597,
         "direction_match": false,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 16.33751666682588,
-        "actual_pct": -27.96396830215162,
-        "error_pts": -44.3014849689775,
+        "expected_pct": 10.324983516176047,
+        "actual_pct": -29.342729742625927,
+        "error_pts": -39.667713258801975,
         "direction_match": false,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 25.87062479049962,
-        "actual_pct": -26.42710914037779,
-        "error_pts": -52.29773393087741,
+        "expected_pct": 13.697111118945235,
+        "actual_pct": -26.84767200866909,
+        "error_pts": -40.54478312761432,
         "direction_match": false,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 34.26032006168804,
-        "actual_pct": 2.012517476439779,
-        "error_pts": -32.247802585248266,
+        "expected_pct": 18.427121987188404,
+        "actual_pct": 0.3534849703955567,
+        "error_pts": -18.073637016792848,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 27.551476,
-      "forward_pe": 20.985323,
-      "market_cap_b": 3676.387672064,
-      "price_to_book": 8.311929,
+      "trailing_pe": 28.102451,
+      "forward_pe": 21.317898,
+      "market_cap_b": 3747.821387776,
+      "price_to_book": 8.473433,
       "profit_margin_pct": 40.305,
       "revenue_growth_pct": 17.7,
       "sector": "Technology"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 6.6524887893651075,
-        "predicted_price": 550.5081331573222,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.5301587301587302,
+        "expected_return_pct": 3.9853240875935976,
+        "predicted_price": 524.7827490357317,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.5286624203821656,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": -11.923779992025551,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": -9.108945298196597,
         "historical_direction_correct": false
       },
       "6 months": {
-        "expected_return_pct": 15.824269281993177,
-        "predicted_price": 597.8501109586774,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.3928571428571428,
+        "expected_return_pct": 8.897304693558596,
+        "predicted_price": 549.572042219423,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.3904382470119522,
         "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": -44.3014849689775,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2387,
+        "historical_error_pts": -39.667713258801975,
         "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 23.503147127164613,
-        "predicted_price": 637.4861734197907,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 0.2751322751322751,
+        "expected_return_pct": 13.285283373797837,
+        "predicted_price": 571.7168548141925,
+        "target_date": "2027-06-18",
+        "oos_hit_rate": 0.2712765957446808,
         "reliable": true,
-        "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": -52.29773393087741,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2324,
+        "historical_error_pts": -40.54478312761432,
         "historical_direction_correct": false
       },
       "12 months": {
-        "expected_return_pct": 31.97681813118611,
-        "predicted_price": 681.2247195931113,
-        "target_date": "2027-09-14",
-        "oos_hit_rate": 0.2063492063492063,
+        "expected_return_pct": 16.67645708124404,
+        "predicted_price": 588.831091618919,
+        "target_date": "2027-09-15",
+        "oos_hit_rate": 0.216,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": -32.247802585248266,
+        "n_historical_samples": 2261,
+        "historical_error_pts": -18.073637016792848,
         "historical_direction_correct": true
       }
     },
-    "last_price": 516.1699829101562
+    "last_price": 504.6700134277344
   },
   "GOOGL": {
-    "held_out_balanced_accuracy": 0.5356328645447817,
+    "held_out_balanced_accuracy": 0.5346410066617321,
     "held_out_days": 368,
-    "classifier_type": "Pipeline",
+    "classifier_type": "VotingClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.6,
-    "recent5d_correct": 3,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": -33.38553673326439,
-    "recent5d_cum_pct": -1.6692768366632194,
+    "recent5d_accuracy": 0.6666666666666666,
+    "recent5d_correct": 20,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": 52.06542492741355,
+    "recent5d_cum_pct": 15.619627478224066,
     "long_horizon_call": "UP over 6 months",
     "long_horizon_hit_rate": 0.984,
     "four_horizon": {
-      "1 month": 0.6685393258426966,
-      "3 months": 0.7770700636942676,
+      "1 month": 0.6769662921348315,
+      "3 months": 0.7707006369426752,
       "6 months": 0.9840637450199204,
       "1 year": 1.0
     },
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 6.695441403552927,
-        "actual_pct": 27.278314214060018,
-        "error_pts": 20.58287281050709,
+        "expected_pct": 6.112019880280216,
+        "actual_pct": 27.871519479487223,
+        "error_pts": 21.75949959920701,
         "direction_match": true,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 9.513099379794076,
-        "actual_pct": 13.822789536622327,
-        "error_pts": 4.30969015682825,
+        "expected_pct": 8.28970141799886,
+        "actual_pct": 11.767225220525113,
+        "error_pts": 3.4775238025262527,
         "direction_match": true,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 16.643801758636812,
-        "actual_pct": 36.78488431187888,
-        "error_pts": 20.14108255324206,
+        "expected_pct": 13.381627894972734,
+        "actual_pct": 44.164506712212905,
+        "error_pts": 30.782878817240167,
         "direction_match": true,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 24.29607328241865,
-        "actual_pct": 39.521908187623154,
-        "error_pts": 15.225834905204504,
+        "expected_pct": 18.191738019355498,
+        "actual_pct": 39.89661970317891,
+        "error_pts": 21.70488168382341,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 17.778112,
-      "forward_pe": 23.796741,
-      "market_cap_b": 4331.109351424,
-      "price_to_book": 6.958111,
+      "trailing_pe": 17.221493,
+      "forward_pe": 22.706121,
+      "market_cap_b": 4193.399078912,
+      "price_to_book": 6.7368736,
       "profit_margin_pct": 54.771,
       "revenue_growth_pct": 24.2,
       "sector": "Communication Services"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 7.151354523716713,
-        "predicted_price": 368.51495286596577,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.7746031746031746,
+        "expected_return_pct": 6.7023041726975086,
+        "predicted_price": 365.9462132730548,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.7707006369426752,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": 20.58287281050709,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": 21.75949959920701,
         "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 11.091704694819915,
-        "predicted_price": 382.0666057035237,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.984126984126984,
+        "expected_return_pct": 11.17729645094308,
+        "predicted_price": 381.2936464081412,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.9840637450199204,
         "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": 4.30969015682825,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2387,
+        "historical_error_pts": 3.4775238025262527,
         "historical_direction_correct": true
       },
       "9 months": {
-        "expected_return_pct": 18.570637682434143,
-        "predicted_price": 407.7881530387778,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 1.0,
-        "reliable": true,
-        "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": 20.14108255324206,
-        "historical_direction_correct": true
-      },
-      "12 months": {
-        "expected_return_pct": 27.278251749113704,
-        "predicted_price": 437.73538050613735,
-        "target_date": "2027-09-14",
+        "expected_return_pct": 17.233476419042233,
+        "predicted_price": 402.06392070923823,
+        "target_date": "2027-06-18",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": 15.225834905204504,
+        "n_historical_samples": 2324,
+        "historical_error_pts": 30.782878817240167,
+        "historical_direction_correct": true
+      },
+      "12 months": {
+        "expected_return_pct": 23.08424245883895,
+        "predicted_price": 422.1297074193817,
+        "target_date": "2027-09-15",
+        "oos_hit_rate": 1.0,
+        "reliable": true,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2261,
+        "historical_error_pts": 21.70488168382341,
         "historical_direction_correct": true
       }
     },
-    "last_price": 343.9200134277344
+    "last_price": 342.9599914550781
   },
   "AMZN": {
-    "held_out_balanced_accuracy": 0.5243563595518903,
+    "held_out_balanced_accuracy": 0.5261151015340959,
     "held_out_days": 368,
     "classifier_type": "RandomForestClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.4,
-    "recent5d_correct": 2,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": -59.74391508145236,
-    "recent5d_cum_pct": -2.987195754072618,
+    "recent5d_accuracy": 0.43333333333333335,
+    "recent5d_correct": 13,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": -53.93043248503721,
+    "recent5d_cum_pct": -16.179129745511162,
     "long_horizon_call": "UP over 6 months",
     "long_horizon_hit_rate": 0.812,
     "four_horizon": {
       "1 month": 0.6123595505617978,
       "3 months": 0.6528662420382165,
       "6 months": 0.8127490039840638,
-      "1 year": 0.96
+      "1 year": 0.976
     },
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 6.732604953955656,
-        "actual_pct": 5.417552478113596,
-        "error_pts": -1.31505247584206,
+        "expected_pct": 5.984546910022599,
+        "actual_pct": 6.523039827853694,
+        "error_pts": 0.5384929178310947,
         "direction_match": true,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 10.844831990857507,
-        "actual_pct": -5.753604759749786,
-        "error_pts": -16.59843675060729,
+        "expected_pct": 7.923170278194977,
+        "actual_pct": -8.622506571106936,
+        "error_pts": -16.545676849301913,
         "direction_match": false,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 16.1845683745915,
-        "actual_pct": 5.667315447546906,
-        "error_pts": -10.517252927044597,
+        "expected_pct": 13.101983264114336,
+        "actual_pct": 10.080222832185193,
+        "error_pts": -3.0217604319291436,
         "direction_match": true,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 23.793197943239797,
-        "actual_pct": 13.37813476085914,
-        "error_pts": -10.415063182380656,
+        "expected_pct": 17.433849211012898,
+        "actual_pct": 12.77332398477462,
+        "error_pts": -4.660525226238277,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 20.484312,
-      "forward_pe": 24.509888,
-      "market_cap_b": 2746.411122688,
-      "price_to_book": 4.9773245,
+      "trailing_pe": 19.802494,
+      "forward_pe": 23.49833,
+      "market_cap_b": 2654.99705344,
+      "price_to_book": 4.8116546,
       "profit_margin_pct": 17.44,
       "revenue_growth_pct": 19.6,
       "sector": "Consumer Cyclical"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 6.125226106154225,
-        "predicted_price": 264.9628500760243,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.653968253968254,
+        "expected_return_pct": 4.825220305008936,
+        "predicted_price": 257.88576509356534,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.6528662420382165,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": -1.31505247584206,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": 0.5384929178310947,
         "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 10.51400407003218,
-        "predicted_price": 275.9203119380775,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.8134920634920635,
+        "expected_return_pct": 8.81545659290378,
+        "predicted_price": 267.70234487287536,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.8127490039840638,
         "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": -16.59843675060729,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2387,
+        "historical_error_pts": -16.545676849301913,
         "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 14.488263439109604,
-        "predicted_price": 285.84284523208225,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 0.873015873015873,
+        "expected_return_pct": 12.808902640648109,
+        "predicted_price": 277.52682114285955,
+        "target_date": "2027-06-18",
+        "oos_hit_rate": 0.8723404255319149,
         "reliable": true,
-        "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": -10.517252927044597,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2324,
+        "historical_error_pts": -3.0217604319291436,
         "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 19.787377790718057,
-        "predicted_price": 299.07314393671334,
-        "target_date": "2027-09-14",
-        "oos_hit_rate": 0.9603174603174603,
+        "expected_return_pct": 16.4864910545083,
+        "predicted_price": 286.5742402567715,
+        "target_date": "2027-09-15",
+        "oos_hit_rate": 0.976,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": -10.415063182380656,
+        "n_historical_samples": 2261,
+        "historical_error_pts": -4.660525226238277,
         "historical_direction_correct": true
       }
     },
-    "last_price": 249.6699981689453
+    "last_price": 246.01499938964844
   },
   "NVDA": {
-    "held_out_balanced_accuracy": 0.555920241617357,
-    "held_out_days": 361,
-    "classifier_type": "RandomForestClassifier",
+    "held_out_balanced_accuracy": 0.5236254295532646,
+    "held_out_days": 362,
+    "classifier_type": "HistGradientBoostingClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.6,
-    "recent5d_correct": 3,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": -2.6285822024857404,
-    "recent5d_cum_pct": -0.131429110124287,
+    "recent5d_accuracy": 0.5,
+    "recent5d_correct": 15,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": -42.514649529473765,
+    "recent5d_cum_pct": -12.75439485884213,
     "long_horizon_call": "UP over 3 months",
     "long_horizon_hit_rate": 0.815,
     "four_horizon": {
-      "1 month": 0.6685393258426966,
+      "1 month": 0.6825842696629213,
       "3 months": 0.8121019108280255,
       "6 months": 0.9123505976095616,
       "1 year": 1.0
@@ -666,221 +666,221 @@
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 15.907851174072274,
-        "actual_pct": 6.922386554546289,
-        "error_pts": -8.985464619525985,
+        "expected_pct": 13.517666799450998,
+        "actual_pct": 6.1514424357759445,
+        "error_pts": -7.366224363675053,
         "direction_match": true,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 34.571889126596524,
-        "actual_pct": -3.227208274784865,
-        "error_pts": -37.79909740138139,
+        "expected_pct": 19.511846514291808,
+        "actual_pct": -5.713094629292503,
+        "error_pts": -25.22494114358431,
         "direction_match": false,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 53.615632619798845,
-        "actual_pct": 8.931204736034504,
-        "error_pts": -44.68442788376434,
+        "expected_pct": 26.07006314968803,
+        "actual_pct": 9.86474520366638,
+        "error_pts": -16.205317946021648,
         "direction_match": true,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 80.78162341376229,
-        "actual_pct": 27.484450120335136,
-        "error_pts": -53.29717329342716,
+        "expected_pct": 35.36430808872334,
+        "actual_pct": 30.931263562256817,
+        "error_pts": -4.433044526466523,
         "direction_match": true,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 28.354616,
-      "forward_pe": 14.301492,
-      "market_cap_b": 5415.809581056,
-      "price_to_book": 23.651272,
+      "trailing_pe": 29.403038,
+      "forward_pe": 14.811546,
+      "market_cap_b": 5608.96147456,
+      "price_to_book": 24.49478,
       "profit_margin_pct": 63.663,
       "revenue_growth_pct": 105.9,
       "sector": "Technology"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 13.693984428186102,
-        "predicted_price": 255.89105907971455,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.8126984126984127,
+        "expected_return_pct": 8.74645067440321,
+        "predicted_price": 252.3958393162374,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.8121019108280255,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": -8.985464619525985,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": -7.366224363675053,
         "historical_direction_correct": true
       },
       "6 months": {
-        "expected_return_pct": 29.83645513966812,
-        "predicted_price": 292.222919092357,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.9126984126984128,
+        "expected_return_pct": 15.01767234581641,
+        "predicted_price": 266.95107534903127,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.9123505976095616,
         "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": -37.79909740138139,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2387,
+        "historical_error_pts": -25.22494114358431,
         "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 48.97974687319984,
-        "predicted_price": 335.30872719911343,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 0.9894179894179894,
+        "expected_return_pct": 22.358910073653256,
+        "predicted_price": 283.98977267153197,
+        "target_date": "2027-06-18",
+        "oos_hit_rate": 0.9893617021276596,
         "reliable": true,
-        "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": -44.68442788376434,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2324,
+        "historical_error_pts": -16.205317946021648,
         "historical_direction_correct": true
       },
       "12 months": {
-        "expected_return_pct": 71.2194223437267,
-        "predicted_price": 385.3635664095107,
-        "target_date": "2027-09-14",
+        "expected_return_pct": 27.92322763360396,
+        "predicted_price": 296.9043146364074,
+        "target_date": "2027-09-15",
         "oos_hit_rate": 1.0,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": -53.29717329342716,
+        "n_historical_samples": 2261,
+        "historical_error_pts": -4.433044526466523,
         "historical_direction_correct": true
       }
     },
-    "last_price": 225.07000732421875
+    "last_price": 232.095703125
   },
   "META": {
-    "held_out_balanced_accuracy": 0.5393617021276595,
+    "held_out_balanced_accuracy": 0.5326241134751772,
     "held_out_days": 368,
     "classifier_type": "HistGradientBoostingClassifier",
     "regressor_type": "RandomForestRegressor",
-    "recent5d_accuracy": 0.6,
-    "recent5d_correct": 3,
-    "recent5d_n": 5,
-    "recent5d_avg_net_bps": 194.43022076051338,
-    "recent5d_cum_pct": 9.72151103802567,
+    "recent5d_accuracy": 0.43333333333333335,
+    "recent5d_correct": 13,
+    "recent5d_n": 30,
+    "recent5d_avg_net_bps": -20.594210251771003,
+    "recent5d_cum_pct": -6.178263075531301,
     "long_horizon_call": "none reliable (see long_horizon_drift.py)",
     "long_horizon_hit_rate": null,
     "four_horizon": {
-      "1 month": 0.5084269662921348,
+      "1 month": 0.5224719101123596,
       "3 months": 0.4617834394904458,
       "6 months": 0.247011952191235,
-      "1 year": 0.224
+      "1 year": 0.232
     },
     "expected_vs_actual": [
       {
         "horizon": "3 months",
-        "expected_pct": 7.173154385703007,
-        "actual_pct": -12.512502494863142,
-        "error_pts": -19.68565688056615,
+        "expected_pct": 7.460832584676402,
+        "actual_pct": -10.791092400966251,
+        "error_pts": -18.251924985642653,
         "direction_match": false,
-        "target_date": "2025-12-23"
+        "target_date": "2025-12-24"
       },
       {
         "horizon": "6 months",
-        "expected_pct": 13.421219172000786,
-        "actual_pct": -27.897380472204027,
-        "error_pts": -41.31859964420481,
+        "expected_pct": 11.955635553722036,
+        "actual_pct": -29.684568873449745,
+        "error_pts": -41.64020442717178,
         "direction_match": false,
-        "target_date": "2026-03-26"
+        "target_date": "2026-03-27"
       },
       {
         "horizon": "9 months",
-        "expected_pct": 23.85180476066333,
-        "actual_pct": -27.47335639141063,
-        "error_pts": -51.32516115207396,
+        "expected_pct": 16.83728063273385,
+        "actual_pct": -24.682107442679737,
+        "error_pts": -41.51938807541359,
         "direction_match": false,
-        "target_date": "2026-06-26"
+        "target_date": "2026-06-29"
       },
       {
         "horizon": "12 months",
-        "expected_pct": 29.76575589539507,
-        "actual_pct": -0.8479837520503408,
-        "error_pts": -30.613739647445417,
+        "expected_pct": 22.759283245091964,
+        "actual_pct": -3.0933642770344383,
+        "error_pts": -25.852647522126404,
         "direction_match": false,
-        "target_date": "2026-09-25"
+        "target_date": "2026-09-28"
       }
     ],
     "fundamentals": {
-      "trailing_pe": 26.597326,
-      "forward_pe": 20.206861,
-      "market_cap_b": 1799.621967872,
-      "price_to_book": 6.890607,
+      "trailing_pe": 27.237465,
+      "forward_pe": 20.665745,
+      "market_cap_b": 1840.853417984,
+      "price_to_book": 7.0484786,
       "profit_margin_pct": 29.834998,
       "revenue_growth_pct": 28.000000000000004,
       "sector": "Communication Services"
     },
     "horizon_forecast": {
       "3 months": {
-        "expected_return_pct": 5.482846866673485,
-        "predicted_price": 792.872338430125,
-        "target_date": "2026-12-23",
-        "oos_hit_rate": 0.4634920634920635,
+        "expected_return_pct": 4.194714000844481,
+        "predicted_price": 753.6299240023617,
+        "target_date": "2026-12-24",
+        "oos_hit_rate": 0.4617834394904458,
         "reliable": true,
-        "effective_independent_n": 5,
-        "n_historical_samples": 2451,
-        "historical_error_pts": -19.68565688056615,
+        "effective_independent_n": 4,
+        "n_historical_samples": 2450,
+        "historical_error_pts": -18.251924985642653,
         "historical_direction_correct": false
       },
       "6 months": {
-        "expected_return_pct": 11.28977582943106,
-        "predicted_price": 836.5206991121106,
-        "target_date": "2027-03-22",
-        "oos_hit_rate": 0.25,
+        "expected_return_pct": 9.324582007648509,
+        "predicted_price": 790.7337451816062,
+        "target_date": "2027-03-23",
+        "oos_hit_rate": 0.247011952191235,
         "reliable": true,
-        "effective_independent_n": 2,
-        "n_historical_samples": 2388,
-        "historical_error_pts": -41.31859964420481,
+        "effective_independent_n": 1,
+        "n_historical_samples": 2387,
+        "historical_error_pts": -41.64020442717178,
         "historical_direction_correct": false
       },
       "9 months": {
-        "expected_return_pct": 21.3336416783968,
-        "predicted_price": 912.0164184551192,
-        "target_date": "2027-06-17",
-        "oos_hit_rate": 0.2804232804232804,
+        "expected_return_pct": 15.419647277719848,
+        "predicted_price": 834.8187414342576,
+        "target_date": "2027-06-18",
+        "oos_hit_rate": 0.2765957446808511,
         "reliable": true,
-        "effective_independent_n": 1,
-        "n_historical_samples": 2325,
-        "historical_error_pts": -51.32516115207396,
+        "effective_independent_n": 0,
+        "n_historical_samples": 2324,
+        "historical_error_pts": -41.51938807541359,
         "historical_direction_correct": false
       },
       "12 months": {
-        "expected_return_pct": 24.98027287017548,
-        "predicted_price": 939.4266854919229,
-        "target_date": "2027-09-14",
-        "oos_hit_rate": 0.2301587301587301,
+        "expected_return_pct": 18.915536589536224,
+        "predicted_price": 860.1041584695545,
+        "target_date": "2027-09-15",
+        "oos_hit_rate": 0.232,
         "reliable": true,
         "effective_independent_n": 0,
-        "n_historical_samples": 2262,
-        "historical_error_pts": -30.613739647445417,
+        "n_historical_samples": 2261,
+        "historical_error_pts": -25.852647522126404,
         "historical_direction_correct": false
       }
     },
-    "last_price": 751.6599731445312
+    "last_price": 723.2899780273438
   },
   "_horizon_track_record": {
     "12 months": {
-      "mae_pts": 28.88273933152727,
+      "mae_pts": 14.95689323325698,
       "direction_match_rate": 0.875,
       "n": 8
     },
     "3 months": {
-      "mae_pts": 8.25162553137781,
+      "mae_pts": 8.035835915757584,
       "direction_match_rate": 0.75,
       "n": 8
     },
     "6 months": {
-      "mae_pts": 26.018546153923126,
-      "direction_match_rate": 0.25,
+      "mae_pts": 23.959654548823984,
+      "direction_match_rate": 0.125,
       "n": 8
     },
     "9 months": {
-      "mae_pts": 35.70501083384114,
+      "mae_pts": 25.25238875566247,
       "direction_match_rate": 0.625,
       "n": 8
     }

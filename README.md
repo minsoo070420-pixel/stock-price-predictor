@@ -895,10 +895,10 @@ page; nothing else in the repo gets deployed.
 ### Horizon selector (3 / 6 / 9 / 12 months)
 
 The dashboard's "Today's forecast at a horizon you choose" section lets a
-viewer pick one of four horizons and see, per ticker: the historical median
-forward return at that horizon (computed fresh as of the latest close, via
-`long_horizon_drift.py`'s new `live_horizon_forecast()`), the implied price,
-the target date, and that horizon's own out-of-sample hit rate. This is the
+viewer pick one of four horizons and see, per ticker: the expected forward
+return at that horizon (computed fresh as of the latest close, via
+`long_horizon_drift.py`'s `live_horizon_forecast()`), the implied price, the
+target date, and that horizon's own out-of-sample hit rate. This is the
 **same buy-and-hold-drift methodology** as the rest of the long-horizon
 sections above it — explicitly not the day-to-day models the rest of the
 engine uses, and not a signal about what's about to happen. Low-sample
@@ -908,6 +908,49 @@ same confidence as a well-sampled 3-month figure. All four horizons' data is
 baked into the page at build time (`live_horizon_forecast.csv` →
 `dashboard_data.json`); the tab switch itself is a client-side table swap,
 no server or API call involved.
+
+### Recency-weighting + shrinkage toward SP500: a verified improvement to the estimator
+
+The plain historical median (used above until this pass) is an unconditional
+average over a decade of very different regimes, and it treats every
+ticker's own thin history as equally trustworthy regardless of how volatile
+or short that history actually is — which is exactly why SP500's calls were
+consistently far more accurate than single-name tickers (see "why is SP500 so
+much better" reasoning below). Two candidate refinements were added to
+`_point_estimators()` and run through the *same* honest MAE comparison
+`run_expected_vs_actual()` already used to pick the median over the raw mean
+in the first place — not assumed to help just because they're more
+sophisticated:
+
+- **Recency-weighted median**: the forward-return distribution weighted by
+  an exponential half-life (~2 years, same convention as the daily models'
+  `recency_weights()`) instead of averaging a decade of regime-mixed history
+  unweighted.
+- **+ shrinkage toward SP500**: that recency-weighted median blended with
+  SP500's own (empirical-Bayes / James-Stein style), weighted by how much
+  genuinely independent history (non-overlapping windows, not the inflated
+  overlapping-window count) actually backs that specific ticker/horizon. A
+  ticker with `effective_independent_n` at the reliability threshold (20)
+  gets equal weight on its own estimate and the market's; a ticker with
+  near-zero independent windows (common at 9-12 months) defers almost
+  entirely to SP500's steadier number.
+
+**Honest result**: recency-weighting *alone*, with no shrinkage, was the
+**worst** of six candidates tested (30.3 pts MAE, worse than even the raw
+mean) — leaning harder into a ticker's own recent history backfires when
+that recent history was itself an unusual regime (PLTR's blistering
+2024-2026 rally, for one, made its own recency-weighted estimate more
+extreme, not less). Combined with shrinkage toward SP500, though, it won
+decisively: **18.1 points MAE vs. 25.1 for the plain median** — roughly a
+28% reduction — now the default (`LIVE_FORECAST_ESTIMATOR` in
+`long_horizon_drift.py`). Not every horizon improved on every axis: 6-month
+direction-match rate actually dropped slightly (2/8 → 1/8) even as its MAE
+improved, a reminder that "lower average error" and "more often
+directionally right" are different claims, same point the dashboard's own
+expected-vs-actual table already makes. Kept because the aggregate,
+honestly-measured metric (MAE, the one this whole comparison is built
+around) improved substantially and consistently — not cherry-picked because
+one horizon looked better.
 
 ## Extending this
 

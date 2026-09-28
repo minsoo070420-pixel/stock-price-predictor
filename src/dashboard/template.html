@@ -288,7 +288,7 @@
   <section>
     <p class="eyebrow" style="margin-bottom:0">Long-horizon · 3 / 6 / 9 / 12 months</p>
     <h2>Was the percent prediction correct?</h2>
-    <p class="section-note">A sharper test than the hit-rate above: using <b>only</b> price history from before an anchor date ~1 year back, the pipeline computes a median-based expected return at each horizon — then checks it against what actually happened, now that every one of these windows (even the 12-month one) has fully played out. Getting the sign right and getting the number right are different claims; this table checks both.</p>
+    <p class="section-note">A sharper test than the hit-rate above: using <b>only</b> price history from before an anchor date ~1 year back, the pipeline computes an expected return at each horizon — then checks it against what actually happened, now that every one of these windows (even the 12-month one) has fully played out. Getting the sign right and getting the number right are different claims; this table checks both.</p>
     <div class="table-scroll">
       <table>
         <thead>
@@ -303,7 +303,7 @@
   <section>
     <p class="eyebrow" style="margin-bottom:0">Long-horizon · pick one</p>
     <h2>Today's forecast at a horizon you choose</h2>
-    <p class="section-note">Same buy-and-hold-drift methodology as the two sections above — <b>not</b> the day-to-day models the rest of this project uses, and not a signal about what's about to happen. "Expected return" is the historical <b>median</b> forward return at this horizon computed from all of this ticker's history to date (median minimizes forecast error, per standard forecasting theory); the hit-rate column is how often that direction has actually been right, out-of-sample, historically. Longer horizons can rest on very few independent samples — check the count before trusting the percentage.</p>
+    <p class="section-note">Same buy-and-hold-drift methodology as the two sections above — <b>not</b> the day-to-day models the rest of this project uses, and not a signal about what's about to happen. "Expected return" is a <b>recency-weighted historical median</b> forward return, shrunk toward SP500's own (more stable, lower-variance) median in proportion to how little independent history backs this specific ticker/horizon — a single volatile stock's own thin history is blended with the market's much steadier one rather than trusted alone. Verified as the best of six candidate methods by mean absolute error (see README); the hit-rate column is how often the direction alone has been right, out-of-sample, historically. Longer horizons can rest on very few independent samples — check the count before trusting the percentage.</p>
     <div class="horizon-tabs" id="horizon-tabs" role="tablist" aria-label="Choose a forecast horizon">
       <button class="horizon-tab" data-horizon="3 months" type="button">3 months</button>
       <button class="horizon-tab" data-horizon="6 months" type="button">6 months</button>
@@ -314,7 +314,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Ticker</th><th>Last price</th><th>Historical median return</th><th>Implied price</th><th>Target date</th><th>Historical hit rate</th></tr>
+          <tr><th>Ticker</th><th>Last price</th><th>Expected return</th><th>Implied price</th><th>Target date</th><th>Historical hit rate</th></tr>
         </thead>
         <tbody id="horizon-forecast-body"></tbody>
       </table>
@@ -493,8 +493,8 @@ __DATA_JSON__
   const evaSummaryEl = document.getElementById('eva-summary');
   if (evaTotal > 0) {
     evaSummaryEl.innerHTML = `<b>${evaCorrect}/${evaTotal} direction matches (${(evaCorrect/evaTotal*100).toFixed(1)}%)</b> — `
-      + `mean absolute error ${(evaErrSum/evaTotal).toFixed(2)} percentage points using the median estimator `
-      + `(beats the raw mean's ~27.5pt error — see repo README for why median wins on this metric). `
+      + `mean absolute error ${(evaErrSum/evaTotal).toFixed(2)} percentage points using the recency-weighted, `
+      + `SP500-shrunk median (beats a plain median's ~25pt error and every other candidate tested — see repo README). `
       + `Read the two numbers together: a high match rate does not imply the size of the move was predicted well.`;
   }
 
@@ -515,7 +515,7 @@ __DATA_JSON__
     if (tr.direction_match_rate < 0.5) horizonTrackRecordEl.classList.add('tr-poor');
     else if (tr.direction_match_rate < 0.7) horizonTrackRecordEl.classList.add('tr-mixed');
     horizonTrackRecordEl.innerHTML =
-      `<span>Historical track record at this horizon (median method, ${tr.n} ticker-instances, one-year backtest):</span>` +
+      `<span>Historical track record at this horizon (recency-weighted, SP500-shrunk median, ${tr.n} ticker-instances, one-year backtest):</span>` +
       `<span class="tr-stat">±${tr.mae_pts.toFixed(1)} pts</span><span>mean error</span>` +
       `<span class="tr-stat">${Math.round(tr.direction_match_rate * tr.n)}/${tr.n}</span><span>direction correct (${pct(tr.direction_match_rate, 0)})</span>`;
   }

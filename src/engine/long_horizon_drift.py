@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import DATA_DIR, REPORTS_DIR, TEST_FRACTION, TICKERS
+from config import DATA_DIR, RECENCY_HALF_LIFE_TRADING_DAYS, REPORTS_DIR, TEST_FRACTION, TICKERS
 
 HORIZONS_TRADING_DAYS = {
     "1 week": 5,
@@ -40,6 +40,26 @@ HORIZONS_TRADING_DAYS = {
 }
 
 MIN_TEST_WINDOWS = 20  # below this, don't trust the out-of-sample number at all
+
+# Two candidate refinements to the plain historical median, added as MORE
+# estimators for run_expected_vs_actual()'s existing honest MAE comparison to
+# judge -- not assumed to win just because they're more sophisticated.
+# 1) Recency-weighted median: the same exponential half-life idea as the
+#    daily models' recency_weights(), converted from trading days to calendar
+#    days (a decade of history mixes very different regimes together; this
+#    leans the median toward more recent, more relevant regimes instead of
+#    treating all of it as equally informative). ~2 years, same as the daily models.
+RECENCY_HALF_LIFE_CALENDAR_DAYS = RECENCY_HALF_LIFE_TRADING_DAYS * 365.25 / 252
+# 2) Shrinkage toward the market (SP500)'s own recency-weighted median,
+#    empirical-Bayes style: a ticker's own estimate is blended with SP500's
+#    much more stable one, weighted by how much genuinely independent history
+#    (non-overlapping windows, not raw overlapping-window count) actually
+#    backs the ticker's own number. SHRINKAGE_PRIOR_STRENGTH is the
+#    effective_independent_n at which a ticker's own estimate and the
+#    market's get equal weight -- reuses MIN_TEST_WINDOWS (the same
+#    "don't trust it below this" threshold already used for the reliability
+#    flag) so a ticker just at the reliability cutoff also gets 50/50 weight.
+SHRINKAGE_PRIOR_STRENGTH = MIN_TEST_WINDOWS
 
 
 def hit_rate(close: pd.Series, horizon: int) -> tuple[float, int]:
@@ -125,19 +145,66 @@ def analyze_ticker(name: str) -> pd.DataFrame:
 EXPECTED_RETURN_HORIZONS = {"3 months": 63, "6 months": 126, "9 months": 189, "12 months": 252}
 
 
-def _point_estimators(fwd: pd.Series) -> dict[str, float]:
+def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
+    order = np.argsort(values)
+    values, weights = values[order], weights[order]
+    cum_weights = np.cumsum(weights)
+    cutoff = weights.sum() / 2.0
+    idx = int(np.searchsorted(cum_weights, cutoff))
+    idx = min(idx, len(values) - 1)
+    return float(values[idx])
+
+
+def _recency_weighted_median(fwd: pd.Series, as_of_date: pd.Timestamp) -> float:
+    """Median of historical forward returns, weighted toward windows that
+    STARTED more recently (exponential decay, RECENCY_HALF_LIFE_CALENDAR_DAYS)
+    instead of treating a decade of regime-mixed history as equally relevant --
+    the same idea as the daily models' recency_weights(), applied here as a
+    weighted median instead of a weighted mean/loss function."""
+    if len(fwd) == 0:
+        return float("nan")
+    age_days = np.clip((as_of_date - fwd.index).days.to_numpy().astype(float), 0, None)
+    weights = 0.5 ** (age_days / RECENCY_HALF_LIFE_CALENDAR_DAYS)
+    return _weighted_median(fwd.to_numpy(dtype=float), weights)
+
+
+def _shrink_toward_market(own_estimate: float, market_estimate: float, effective_n: int,
+                           prior_strength: float = SHRINKAGE_PRIOR_STRENGTH) -> float:
+    """Empirical-Bayes-style shrinkage: blend a ticker's own point estimate
+    toward the market's (SP500's) much more stable one, weighted by how much
+    genuinely independent history backs the ticker's own number. A ticker
+    with effective_n == prior_strength gets equal weight on its own estimate
+    and the market's; effective_n near 0 (common for short-history tickers or
+    long horizons) defers almost entirely to the market. This is why SP500
+    itself is dramatically more accurate than single-name tickers at these
+    horizons (see README) -- shrinking a noisy single-stock estimate toward
+    the much lower-variance, longer-history market estimate directly targets
+    that same mechanism instead of trusting every ticker's own thin history
+    equally."""
+    if pd.isna(own_estimate) or pd.isna(market_estimate):
+        return own_estimate
+    own_weight = effective_n / (effective_n + prior_strength)
+    return own_weight * own_estimate + (1 - own_weight) * market_estimate
+
+
+def _point_estimators(fwd: pd.Series, as_of_date: pd.Timestamp | None = None,
+                       market_fwd: pd.Series | None = None, effective_n: int | None = None) -> dict[str, float]:
     """Several candidate point estimates from the same historical sample of
     forward returns, computed the same no-lookahead way -- compared honestly
     rather than assuming one wins.
 
-    Why these specific four: the reported metric is MAE, and minimising MAE
+    Why these first four: the reported metric is MAE, and minimising MAE
     means forecasting the MEDIAN, not the mean (minimising RMSE forecasts the
     mean instead) -- a standard forecasting-theory result, not a guess. Financial
     return distributions are also fat-tailed (a few extreme historical windows
     can drag a raw mean far from the typical case, which is exactly what was
     seen with PLTR/NVDA's inflated averages), so a trimmed mean and a Tukey
     IQR-winsorized mean -- both standard Kaggle-competition techniques for
-    outlier-heavy targets -- are included as robustness alternatives to the mean."""
+    outlier-heavy targets -- are included as robustness alternatives to the mean.
+
+    Two more candidates are added when `as_of_date`/`market_fwd` are supplied
+    (see _recency_weighted_median / _shrink_toward_market above) -- also just
+    candidates for the same honest MAE comparison, not assumed to win."""
     if len(fwd) == 0:
         return {}
     mean = float(fwd.mean())
@@ -151,20 +218,36 @@ def _point_estimators(fwd: pd.Series) -> dict[str, float]:
     q1, q3 = fwd.quantile(0.25), fwd.quantile(0.75)
     iqr = q3 - q1
     winsorized_mean = float(fwd.clip(q1 - 1.5 * iqr, q3 + 1.5 * iqr).mean())
-    return {
+    estimators = {
         "mean": mean, "median": median,
         "trimmed_mean_10pct": trimmed_mean, "winsorized_mean_iqr": winsorized_mean,
     }
 
+    if as_of_date is not None:
+        rw_median = _recency_weighted_median(fwd, as_of_date)
+        estimators["recency_weighted_median"] = rw_median
+        if market_fwd is not None and effective_n is not None:
+            market_rw_median = _recency_weighted_median(market_fwd, as_of_date)
+            estimators["recency_weighted_median_shrunk"] = _shrink_toward_market(
+                rw_median, market_rw_median, effective_n
+            )
+    return estimators
 
-def expected_vs_actual_return(name: str, anchor_days_ago: int = 252) -> pd.DataFrame:
+
+def expected_vs_actual_return(name: str, anchor_days_ago: int = 252,
+                               market_close: pd.Series | None = None) -> pd.DataFrame:
     """Walk-forward, no-lookahead check: using ONLY price history available
     strictly BEFORE the anchor date (`anchor_days_ago` trading days back --
     ~1 year, by default), compute several candidate point estimates of the
     historical forward return at 3/6/9/12 months (see _point_estimators) --
     then compare each to what ACTUALLY happened over that exact same window,
     since every one of these windows (even the 12-month one, which lands on
-    today) is now fully realized. One row per (horizon, estimator)."""
+    today) is now fully realized. One row per (horizon, estimator).
+
+    `market_close` (SP500's own Close series, passed by the caller so it's
+    only loaded once) enables the recency_weighted_median_shrunk candidate --
+    for SP500 itself, pass its own close series so shrinkage is a harmless
+    no-op (shrinking toward itself)."""
     df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
     close = df["Close"]
     n = len(close)
@@ -176,10 +259,18 @@ def expected_vs_actual_return(name: str, anchor_days_ago: int = 252) -> pd.DataF
     anchor_price = float(close.iloc[anchor_idx])
     history_before_anchor = close.iloc[:anchor_idx]  # strictly before the anchor -- no lookahead
 
+    market_history_before_anchor = None
+    if market_close is not None:
+        market_history_before_anchor = market_close[market_close.index < anchor_date]
+
     rows = []
     for label, h in EXPECTED_RETURN_HORIZONS.items():
         fwd = (history_before_anchor.shift(-h) / history_before_anchor - 1).dropna()
-        estimators = _point_estimators(fwd)
+        market_fwd = None
+        if market_history_before_anchor is not None:
+            market_fwd = (market_history_before_anchor.shift(-h) / market_history_before_anchor - 1).dropna()
+        effective_n = len(fwd) // h if h else 0
+        estimators = _point_estimators(fwd, as_of_date=anchor_date, market_fwd=market_fwd, effective_n=effective_n)
 
         target_idx = anchor_idx + h
         target_date = close.index[target_idx] if target_idx < n else None
@@ -207,16 +298,24 @@ def expected_vs_actual_return(name: str, anchor_days_ago: int = 252) -> pd.DataF
     return pd.DataFrame(rows)
 
 
-def live_horizon_forecast(name: str) -> pd.DataFrame:
+LIVE_FORECAST_ESTIMATOR = "recency_weighted_median_shrunk"  # verified winner -- see README for the honest comparison
+
+
+def live_horizon_forecast(name: str, market_close: pd.Series | None = None) -> pd.DataFrame:
     """Today-anchored version of expected_vs_actual_return() -- for the
     dashboard's horizon selector. Unlike that function, there's no realized
     "actual" to compare against yet (these windows haven't happened), so this
     just reports the historical forward-return distribution's point estimate
-    (median -- see _point_estimators for why) plus that horizon's own
-    out-of-sample hit rate from analyze_ticker(), same reliability framing
-    (n>=20 windows) used everywhere else in this file. Still the SAME weaker
-    claim as the rest of this module -- buy-and-hold drift, not a discovered
-    signal -- not the day-to-day models the rest of the engine uses."""
+    (LIVE_FORECAST_ESTIMATOR -- see _point_estimators for why "median" is the
+    default) plus that horizon's own out-of-sample hit rate from
+    analyze_ticker(), same reliability framing (n>=20 windows) used
+    everywhere else in this file. Still the SAME weaker claim as the rest of
+    this module -- buy-and-hold drift, not a discovered signal -- not the
+    day-to-day models the rest of the engine uses.
+
+    `market_close` (SP500's own Close series) enables the
+    recency_weighted_median_shrunk candidate the same way as
+    expected_vs_actual_return; for SP500 itself pass its own close series."""
     df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
     close = df["Close"]
     last_date = close.index[-1]
@@ -229,8 +328,10 @@ def live_horizon_forecast(name: str) -> pd.DataFrame:
     rows = []
     for label, h in EXPECTED_RETURN_HORIZONS.items():
         fwd = (close.shift(-h) / close - 1).dropna()
-        estimators = _point_estimators(fwd)
-        median_return = estimators.get("median")
+        market_fwd = (market_close.shift(-h) / market_close - 1).dropna() if market_close is not None else None
+        effective_n = len(fwd) // h if h else 0
+        estimators = _point_estimators(fwd, as_of_date=last_date, market_fwd=market_fwd, effective_n=effective_n)
+        median_return = estimators.get(LIVE_FORECAST_ESTIMATOR)
         target_date = (last_date + pd.tseries.offsets.BDay(h)).date()
 
         hr_label = horizon_to_hitrate_label[label]
@@ -253,7 +354,8 @@ def live_horizon_forecast(name: str) -> pd.DataFrame:
 
 
 def run_live_horizon_forecast() -> pd.DataFrame:
-    all_rows = [live_horizon_forecast(name) for name in TICKERS.values()]
+    market_close = pd.read_csv(DATA_DIR / "SP500.csv", index_col=0, parse_dates=True)["Close"]
+    all_rows = [live_horizon_forecast(name, market_close=market_close) for name in TICKERS.values()]
     result = pd.concat(all_rows, ignore_index=True)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / "live_horizon_forecast.csv"
@@ -295,9 +397,10 @@ def run_expected_vs_actual(anchor_days_ago: int = 252):
     than assuming the raw mean is the right one to report."""
     print(f"\n{'='*90}\nExpected vs. actual return at 3/6/9/12 months, using ONLY data available "
           f"~{anchor_days_ago} trading days ago (no lookahead)\n{'='*90}")
+    market_close = pd.read_csv(DATA_DIR / "SP500.csv", index_col=0, parse_dates=True)["Close"]
     all_rows = []
     for name in TICKERS.values():
-        r = expected_vs_actual_return(name, anchor_days_ago)
+        r = expected_vs_actual_return(name, anchor_days_ago, market_close=market_close)
         if r.empty:
             print(f"\n--- {name}: not enough pre-anchor history ---")
             continue

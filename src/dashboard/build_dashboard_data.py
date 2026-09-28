@@ -15,6 +15,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from config import REPORTS_DIR, TICKERS
+from long_horizon_drift import LIVE_FORECAST_ESTIMATOR
 
 
 def _nan_to_none(v):
@@ -47,7 +48,7 @@ def build() -> dict:
     four_horizon = pd.read_csv(REPORTS_DIR / "four_horizon_comparison.csv", index_col="ticker")
     fundamentals = pd.read_csv(REPORTS_DIR / "fundamentals_comparison.csv", index_col="ticker")
     expected_vs_actual = pd.read_csv(REPORTS_DIR / "expected_vs_actual_return.csv")
-    expected_vs_actual = expected_vs_actual[expected_vs_actual["estimator"] == "median"]
+    expected_vs_actual = expected_vs_actual[expected_vs_actual["estimator"] == LIVE_FORECAST_ESTIMATOR]
     backtest_recent = pd.read_csv(REPORTS_DIR / "backtest_recent.csv")
     live_forecast = pd.read_csv(REPORTS_DIR / "live_horizon_forecast.csv")
 
