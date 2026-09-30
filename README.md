@@ -315,12 +315,47 @@ Regressors tell a similar story for most tickers: walk-forward mean RMSE is
 higher (worse) than the single-window number for 6 of 8 tickers (GOOGL and
 MSFT are the stable exceptions, where the two numbers roughly agree).
 
-This does not change which models are shipped — `walk_forward_stability()`
-is purely a reporting/confidence check, run after model selection, and never
-feeds back into it. What it changes is how much confidence to put in the
-single-window numbers quoted throughout the rest of this document: less than
-they look at face value. Full per-ticker table:
-`reports/walk_forward_stability.csv`.
+Full per-ticker table: `reports/walk_forward_stability.csv`.
+
+### Selection bias fix: the winner's curse was deciding what got shipped
+
+The paragraph above originally said walk-forward checking "does not change
+which models are shipped... run after model selection, and never feeds back
+into it." That was true when written, but it described a real problem, not a
+safe one: **picking a winner by the same single held-out window later quoted
+as its score is a textbook selection-bias setup.** Whichever candidate got
+lucky on that one window wins, and its luck becomes the reported number —
+exactly what produced PLTR's 58.7% single-window balanced accuracy, which
+walk-forward checking then revealed was really 52.0% ± 3.3% (previous
+section). The check caught the problem after the fact; it never had the
+power to stop a lucky candidate from shipping in the first place.
+
+The fix: `run_task()` now scores every non-floor candidate (all models,
+within a feature set) and `train_for_ticker()` now scores every feature set
+across **`WALK_FORWARD_STABILITY_FOLDS` expanding folds carved only from the
+training region** — the held-out test window is never touched during
+selection, so it stays a genuine, untouched confirmation number afterward,
+not something that also picked the winner. The winner is the candidate with
+the best *pessimistic, pre-declared* score — `mean + 0.5·std` (regression,
+lower better) or `mean − 0.5·std` (classification, higher better) — computed
+before looking at any result, so inconsistency across folds is penalized,
+not just rewarded for a good average.
+
+**Honest result: this changed almost everything.** Re-running all 8 tickers
+with the fix and comparing, for every (ticker, feature set, task), which
+model the old single-window metric would have picked vs. which the new
+fold-based score actually picked: **39 of 48 model-level picks (81%) and 14
+of 16 feature-set-level picks (87.5%) changed.** That is not a subtle
+correction — it means most of this project's previous "best" picks were
+indistinguishable from noise once evaluated for consistency rather than a
+single lucky window, and the earlier per-ticker RMSE/balanced-accuracy
+numbers throughout this README reflect winners chosen partly by luck. The
+daily-prediction accuracy after the fix is unchanged in kind: still close to
+a coin flip (50.0% directional accuracy over the most recent 30 trading days,
+120/240 across 8 tickers) — the fix did not make the models better at
+predicting, it made the *selection process* honest about which one to trust.
+Full retrain runtime for all 8 tickers: ~26 minutes, still well within a
+weekly retrain cadence.
 
 ### Did the optimization actually help?
 
@@ -348,10 +383,12 @@ logic. That's the most useful single finding in this whole README, and it
 held even after adding options-implied volatility (below) — the next
 section's honest numbers make the same point again with a different feature.
 
-`train.py` still evaluates every feature-set/model combination on the same
-held-out window and keeps whichever wins per ticker per task, so it never
-defaults to the fancier setup just because it's newer — that part of the
-methodology didn't change, only the metric being optimized for did.
+`train.py` still evaluates every feature-set/model combination and keeps
+whichever wins per ticker per task, so it never defaults to the fancier setup
+just because it's newer — that part of the methodology didn't change. What
+changed (see "Selection bias fix" above) is *how* winning is decided: by a
+pessimistic score across training-region walk-forward folds, not by whoever
+happened to win the single held-out window.
 
 ## Options-implied volatility: the same free-data ceiling as news, again
 

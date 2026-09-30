@@ -17,10 +17,17 @@ Optimization pipeline, in order, per ticker/task/feature-set:
      data) tunes Random Forest and HistGradientBoosting.
   3. Ensembling: a soft-voting ensemble of the tuned RF + tuned HGB + the
      (untuned, already fast) linear model is added as one more candidate.
-  4. Final selection: baseline vs. macro-enhanced feature sets, and every
-     candidate model within each, are all compared on the SAME untouched
-     held-out test window, and whichever wins is kept -- CV folds above are
-     only ever used to pick hyperparameters, never to report the final metric.
+  4. Selection: every candidate model (within a feature set) and every
+     feature set (baseline / +macro / +macro+news) is scored on
+     WALK_FORWARD_STABILITY_FOLDS expanding chronological folds carved from
+     the training region ONLY -- never the final test window -- and the
+     winner is picked from that (see _selection_score()). This fixes a
+     selection-bias gap the project's own walk-forward stability check
+     found but couldn't correct on its own: picking a winner by the same
+     window later quoted as its "held-out" score is a textbook winner's
+     curse. The final test window is then scored exactly once, on the
+     already-chosen winner -- a genuine, untouched confirmation number,
+     never the thing that decided who won.
 """
 import json
 import sys
@@ -262,6 +269,23 @@ def plot_predictions(name, dates_test, close_test, pred_ret, out_path):
     plt.close(fig)
 
 
+def _selection_score(wf: dict, task: str) -> float | None:
+    """Pessimistic, pre-declared selection criterion so model/feature-set
+    selection isn't decided by a single lucky held-out window -- the same
+    winner's-curse problem walk_forward_stability() already surfaces
+    (PLTR's 58.7% single-window balanced accuracy was really 52.0% +/- 3.3%
+    once checked across folds -- but that check only ran AFTER a winner was
+    already picked, so it could never have stopped a candidate chosen partly
+    by luck from shipping). Penalizes inconsistency across folds, not just
+    rewards a good average: fixed here, before looking at any per-ticker
+    result, so it can't be quietly re-tuned later to make a preferred
+    candidate win. Regression: lower is better (mean + 0.5*std). Classification:
+    higher is better (mean - 0.5*std)."""
+    if wf["mean"] is None:
+        return None
+    return wf["mean"] + 0.5 * wf["std"] if task == "regression" else wf["mean"] - 0.5 * wf["std"]
+
+
 def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
     """Feature-select, tune, ensemble, and pick the best candidate for one
     (feature set, task) combination. Returns the winning model, its name, the
@@ -311,12 +335,50 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
     is_floor_baseline = lambda n: n in ("baseline_zero_return", "baseline_majority")
     metric_key = "rmse" if task == "regression" else "balanced_accuracy"
     better = (lambda a, b: a < b) if task == "regression" else (lambda a, b: a > b)
-    best_name, best_val = None, (np.inf if task == "regression" else -np.inf)
+
+    # Selection-time walk-forward scoring: picking the winner by the SAME
+    # single window that then gets quoted as its "held-out" score is a
+    # textbook selection-bias setup (the winner's curse) -- whichever
+    # candidate got lucky on that one window wins, and its luck becomes the
+    # reported number. Score every non-floor candidate across
+    # WALK_FORWARD_STABILITY_FOLDS expanding folds carved ONLY from the
+    # training region (X_train_full/y_train) -- X_test_full/y_test are never
+    # touched here, so the single-window metric computed above stays a
+    # genuine, untouched confirmation number instead of also being what
+    # picked the winner.
     for r in results:
-        if is_floor_baseline(r["model"]):
+        mname = r["model"]
+        if is_floor_baseline(mname):
+            r["selection_fold_mean"] = r["selection_fold_std"] = r["selection_n_folds"] = None
             continue
-        if better(r[metric_key], best_val):
-            best_val, best_name = r[metric_key], r["model"]
+        cols = ["ret_1d"] if mname == "baseline_persistence" else selected_cols
+        wf = walk_forward_stability(X_train_full, y_train, task, mname, fitted_models[mname], cols)
+        r["selection_fold_mean"] = wf["mean"]
+        r["selection_fold_std"] = wf["std"]
+        r["selection_n_folds"] = wf["n_folds"]
+
+    non_floor = [r for r in results if not is_floor_baseline(r["model"])]
+    any_fold_based = any(r["selection_fold_mean"] is not None for r in non_floor)
+    selection_basis = "walk_forward" if any_fold_based else "single_holdout_fallback"
+
+    best_name, best_key = None, (np.inf if task == "regression" else -np.inf)
+    for r in non_floor:
+        r["selection_basis"] = selection_basis
+        if any_fold_based:
+            wf = {"mean": r["selection_fold_mean"], "std": r["selection_fold_std"]}
+            key = _selection_score(wf, task)
+            if key is None:
+                continue  # too little training-region data to fold this candidate fairly this round
+        else:
+            key = r[metric_key]
+        if better(key, best_key):
+            best_key, best_name = key, r["model"]
+
+    # best_val is deliberately the single-window metric (results[best_name][metric_key]),
+    # NOT best_key -- it's now a confirmation number the winner never got picked by,
+    # not the thing that decided the winner.
+    best_val = next(r[metric_key] for r in results if r["model"] == best_name)
+    winning_selection = next(r for r in results if r["model"] == best_name)
 
     # baseline_persistence was fit on X_*_full and only ever looks at "ret_1d" --
     # it must be served that column at inference time regardless of what the
@@ -330,6 +392,9 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
         "best_model": fitted_models[best_name],
         "best_pred": preds.get(best_name),
         "best_metric": best_val,
+        "selection_fold_mean": winning_selection["selection_fold_mean"],
+        "selection_fold_std": winning_selection["selection_fold_std"],
+        "selection_basis": selection_basis,
         "feature_columns": winning_feature_columns,
         "tuned_params": tuned_params,
     }
@@ -338,24 +403,26 @@ def run_task(X_train_full, y_train, X_test_full, y_test, task: str, label: str):
 def walk_forward_stability(X: pd.DataFrame, y: pd.Series, task: str, model_name: str,
                             model_template, feature_columns: list[str],
                             n_folds: int = WALK_FORWARD_STABILITY_FOLDS) -> dict:
-    """Answers a question the single held-out split above cannot: is the
-    model's reported metric a stable, time-consistent effect, or does it swing
-    around depending on which window happens to get tested? Re-fits the
-    ALREADY-CHOSEN model -- same class and hyperparameters, via sklearn's
-    clone() -- across several expanding chronological windows spanning this
-    ticker's FULL history (TimeSeriesSplit, the same splitting mechanism
-    already used for hyperparameter CV, just with more/larger folds here),
+    """Answers a question a single train/test split cannot: is a metric a
+    stable, time-consistent effect, or does it swing around depending on
+    which window happens to get tested? Re-fits the given model -- same
+    class and hyperparameters, via sklearn's clone() -- across several
+    expanding chronological windows of whatever (X, y) the caller passes in,
     and reports the metric's mean and standard deviation across folds.
 
-    Deliberately narrower and cheaper than a full multi-fold re-run of
-    feature selection + hyperparameter search + model selection (which would
-    multiply this project's already-substantial tuning cost by n_folds, for
-    every candidate, every feature set): this only asks whether the ONE
-    model/feature-set combination that's actually about to be shipped holds
-    up across time, not whether a different one would have won in a
-    different window -- that remains governed by the single split in
-    run_task(). A high std relative to the single-window number is itself an
-    important, honest finding, not a bug to explain away."""
+    Two call sites, same mechanism, different data slice:
+      - run_task() calls this on EVERY non-floor candidate, fed only the
+        training region (X_train_full/y_train) -- this is what now DECIDES
+        the winner (via _selection_score()), fixing the selection bias of
+        picking a winner by the same window later quoted as its score. See
+        README: PLTR's classifier looked like 58.7% balanced accuracy on a
+        single window; walk-forward checking found 52.0% +/- 3.3%.
+      - train_for_ticker(), post-selection, calls this again on the
+        ALREADY-CHOSEN model over its FULL history (train+test) purely to
+        report how stable the shipped model is over time -- this second use
+        never feeds back into what's shipped, it's a confirmation report.
+    A high std relative to the mean is itself an important, honest finding
+    either way, not a bug to explain away."""
     Xc = X[feature_columns]
     splitter = TimeSeriesSplit(n_splits=n_folds)
     fold_scores = []
@@ -381,6 +448,20 @@ def walk_forward_stability(X: pd.DataFrame, y: pd.Series, task: str, model_name:
         "std": float(np.std(fold_scores)),
         "fold_scores": fold_scores,
     }
+
+
+def _feature_set_selection_key(task_result: dict, task: str) -> float:
+    """Same fix as run_task()'s model selection, one level up: pick which
+    feature set (baseline / +macro / +macro+news) wins using the same
+    walk-forward score that picked the winning model inside it, not the
+    single-window confirmation number -- otherwise the selection bias just
+    moves up one level instead of actually going away."""
+    if task_result["selection_basis"] == "walk_forward":
+        wf = {"mean": task_result["selection_fold_mean"], "std": task_result["selection_fold_std"]}
+        score = _selection_score(wf, task)
+        if score is not None:
+            return score
+    return task_result["best_metric"]
 
 
 def run_feature_set(name: str, df: pd.DataFrame, macro_df, feature_columns: list[str], label: str, news_df=None):
@@ -423,8 +504,8 @@ def train_for_ticker(name: str, df: pd.DataFrame, macro_df: pd.DataFrame, news_d
                                  "with_news: + macro + NYT news sentiment", news_df=news_df)
 
     candidates = [baseline, enhanced, with_news]
-    reg_pick = min(candidates, key=lambda c: c["reg"]["best_metric"])
-    clf_pick = max(candidates, key=lambda c: c["clf"]["best_metric"])
+    reg_pick = min(candidates, key=lambda c: _feature_set_selection_key(c["reg"], "regression"))
+    clf_pick = max(candidates, key=lambda c: _feature_set_selection_key(c["clf"], "classification"))
 
     print(f"  >> regressor RMSE:              baseline={baseline['reg']['best_metric']:.5f}  "
           f"macro={enhanced['reg']['best_metric']:.5f}  "

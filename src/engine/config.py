@@ -75,12 +75,15 @@ CLASSIFICATION_THRESHOLD = 0.52
 # A single held-out test window (the ~15% split above) gives one point
 # estimate of a model's accuracy/RMSE -- it can't say whether that number is a
 # stable, real effect or just where this particular window happened to land.
-# WALK_FORWARD_STABILITY_FOLDS controls train.py's walk_forward_stability():
-# after a model+feature-set has already been picked (this constant doesn't
-# change what gets picked or shipped), it's refit across this many expanding
-# chronological windows (sklearn's TimeSeriesSplit, the same mechanism already
-# used for hyperparameter CV) and the metric's mean/std across folds is
-# reported alongside the single-window number.
+# WALK_FORWARD_STABILITY_FOLDS controls train.py's walk_forward_stability(),
+# used at two points: (1) DURING model/feature-set selection -- every
+# candidate is refit across this many expanding chronological folds carved
+# from the training region only, and the winner is picked from that,
+# fixing the selection bias of picking a winner by the same window later
+# quoted as its score; (2) AFTER selection, on the already-chosen winner's
+# full history, purely to report how stable the shipped model is over time.
+# Both reuse the same TimeSeriesSplit mechanism already used for
+# hyperparameter CV.
 WALK_FORWARD_STABILITY_FOLDS = 4
 
 # Rough round-trip transaction cost assumptions (spread + slippage, in basis
