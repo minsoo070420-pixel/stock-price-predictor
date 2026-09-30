@@ -588,52 +588,65 @@ has the full horizon-by-horizon table):
 | Ticker | Shortest horizon crossing 80% OOS | OOS hit rate | Independent samples |
 |---|---|---|---|
 | SP500 | 6 months (126 trading days) | 81.8% | **~28** |
-| AAPL | 6 months (126 trading days) | 97.6% | **~1** |
+| NVDA | 6 months (126 trading days) | 91.4% | ~7 |
+| AAPL | 9 months (189 trading days) | 80.4% | ~8 |
+| GOOGL | 6 months (126 trading days) | 85.8% | ~5 |
+| AMZN | 9 months (189 trading days) | 82.1% | ~4 |
+| MSFT | 2 years (504 trading days) | 92.6% | ~2 |
+| META | 2 years (504 trading days) | 100.0% | **~0** |
 | PLTR | *none* | — | — |
 
 Read this carefully, not just the headline numbers:
 
 - **The overlapping-window trap**: a 6-month window and the next day's 6-month
-  window share 125 of 126 days — they are not independent evidence. AAPL's
-  "251 test windows" is really **about one independent 6-month period**. That
-  97.6% is closer to "AAPL happened to keep going up during the one stretch
-  we have" than a validated statistic.
-- **SP500 is the one case where this is actually on solid ground, and it
-  earned that by using far more history than everything else in this
-  project.** Every other ticker (and SP500's own daily-prediction models)
-  uses the shared 10-year `HISTORY_PERIOD` — enough for a handful of
-  independent windows at best, one at worst. SP500 the *index* (`^GSPC`) has
-  freely available data back to 1927, so `long_horizon_drift.py` fetches it
-  separately at `LONG_HORIZON_HISTORY_PERIOD = "max"`
-  (`fetch_data.fetch_long_horizon_market_history()`) — giving a held-out test
-  region spanning ~1970-2026, with **~28 genuinely independent 6-month
-  windows** covering multiple real bear markets (2000 dot-com, 2008 GFC, 2020
-  COVID crash, 2022). 81.8% surviving that many independent cycles, several
-  of them real crashes, is a materially stronger claim than a single-decade
-  number could ever be — even though it's *lower* than the old 10-year-only
-  number (86.6% at 2 months, ~7 independent windows) once bear-market data is
-  actually included instead of a mostly-bull decade.
-- **PLTR breaks the whole premise.** At longer horizons its out-of-sample hit
-  rate actually *drops* to 27-33% — the held-out test period was a genuine
-  down-trending stretch for PLTR, so "always bet UP" would have been wrong
-  most of the time. `predict_long_horizon.py` deliberately makes no call for
-  PLTR rather than force an 80% claim that the data doesn't support — a
-  script that found a way to claim 80%+ for all three tickers regardless of
-  what actually happened would be fitting the conclusion, not reporting it.
-- **This only "works" as long as the drift continues** — for most tickers
-  here, that's still an untested assumption, since their ~1-independent-
-  window evidence has never actually seen the drift fail. SP500 is the
-  exception: its ~28-independent-window test region *did* include real drift
-  failures (2000, 2008, 2020, 2022 all sit inside it), and 81.8% is the rate
-  that survived those, not a number computed only from a period where
-  betting UP never got tested against a real downturn.
+  window share 125 of 126 days — they are not independent evidence. Before
+  the fix below, most of these tickers' hit rates were backed by **about one
+  independent window** each — indistinguishable from "it happened to keep
+  going up during the one stretch we tested."
+- **Every ticker except PLTR now uses its own full available history, not
+  the shared 10-year `HISTORY_PERIOD`.** SP500 the index (`^GSPC`) has data
+  back to 1927; AAPL to 1980; MSFT to 1986; AMZN to 1997; NVDA to 1999;
+  GOOGL to 2004; META to 2012 — all far more than the 10 years the daily-
+  prediction pipeline uses (and needs no more than). `long_horizon_drift.py`
+  fetches each one separately at `LONG_HORIZON_HISTORY_PERIOD = "max"`
+  (`fetch_data.fetch_long_horizon_history()`), so every held-out test region
+  now spans multiple real bear markets (2000 dot-com, 2008 GFC, 2020 COVID
+  crash, 2022) instead of one recent bull run. The effect is uneven because
+  the extra history itself is uneven: SP500 gained the most (~7 → ~28
+  independent windows, IPO in 1927), AAPL/MSFT/AMZN/NVDA/GOOGL gained real
+  ground (~1 → 2-8, decades of their own listed history), META only modestly
+  (IPO'd 2012, so even "max" is just 4 more years than the old 10y window),
+  and PLTR not at all — it IPO'd in 2020, so the old 10-year fetch already
+  *was* its entire history; there is no more data to give it. The percentages
+  themselves mostly went *down* once bear-market data was actually included
+  instead of a mostly-bull decade (SP500: 86.6%→81.8%; AAPL: 97.6%→80.4%) —
+  that's the fix working, not a regression: a lower number that survived
+  real crashes is worth more than a higher one that never got tested against
+  one.
+- **PLTR breaks the whole premise, and no amount of extra history can fix
+  that.** At longer horizons its out-of-sample hit rate actually *drops* to
+  27-33% — the held-out test period was a genuine down-trending stretch for
+  PLTR, so "always bet UP" would have been wrong most of the time.
+  `predict_long_horizon.py` deliberately makes no call for PLTR rather than
+  force an 80% claim the data doesn't support.
+- **This only "works" as long as the drift continues** — genuinely untested
+  for tickers still sitting at ~0-2 independent windows (META, MSFT), whose
+  short listed history has simply never seen the drift fail. SP500, NVDA,
+  AAPL, GOOGL, and AMZN now have enough independent windows (4-28) that their
+  test regions *did* include real drift failures, and the reported hit rate
+  is the rate that survived those, not one computed only from a period where
+  betting UP was never actually tested against a downturn.
 
-Net: 80-90% is achievable *as a number* for most tickers here, but only by
-predicting something much less useful than "will the stock go up tomorrow,"
-and that weaker claim's evidence is thin — usually ~1 independent window.
-SP500 is the one case backed by enough genuinely independent history
-(~28 windows, several real bear markets) to trust the number as a real,
-if still weak-question, statistic rather than an anecdote.
+Net: 80-90% is achievable *as a number* for every ticker except PLTR, but
+only by predicting something much less useful than "will the stock go up
+tomorrow." How much to trust that weaker claim now varies a lot by ticker,
+and tracks how much real history each one has to draw on: SP500 (~28
+independent windows) and AAPL/NVDA/GOOGL/AMZN (4-8) are backed by enough
+genuinely independent history — several real bear markets among them — to
+trust the number as a real, if still weak-question, statistic. META and
+MSFT (0-2 independent windows) are better than before but still thin by any
+normal standard. PLTR has none, and that's an honest reflection of a stock
+that's simply too young to answer this question yet, not a bug.
 
 ## Expected vs. actual return: using a year-old snapshot, checked against reality
 
@@ -823,7 +836,7 @@ actually matter, all pulled from Part 1's own outputs — it trains nothing new.
 ```
                        held_out_test_rmse   held_out_test_balanced_accuracy   recent_accuracy   recent_net_bps_per_trade   long_horizon_call
 SP500                  0.0104                0.5209                          0.4333            +8.1                       UP over 6 months (81.8% OOS)
-AAPL                   0.0193                0.5110                          0.5000            -23.8                      UP over 6 months (97.6% OOS, ~1 sample)
+AAPL                   0.0193                0.5110                          0.5000            -23.8                      UP over 9 months (80.4% OOS, ~8 samples)
 PLTR                   0.0394                0.5806                          0.5333            +29.9                      none reliable
 ```
 
@@ -847,23 +860,23 @@ own walk-forward analysis rather than computing anything new:
 
 ```
 horizon              1 month            3 months            6 months               1 year
-AAPL     63.8%  [~16 indep.]  79.0%  [~4 indep.]  97.6%  [~1 indep.]  100.0%  [~0 indep.]
-PLTR      39.7%  [~9 indep.]  27.2%  [~2 indep.]  29.3%  [~0 indep.]                  n/a
+AAPL    62.2%  [~81 indep.]  66.4% [~26 indep.]  76.5% [~12 indep.]  89.2%  [~5 indep.]
+PLTR      44.4%  [~9 indep.]  33.7%  [~2 indep.]  40.0%  [~0 indep.]                  n/a
 SP500   67.9% [~176 indep.]  76.4% [~58 indep.]  81.8% [~28 indep.]  85.5% [~13 indep.]
 ```
 
 The `[~N indep.]` figure is the point of showing this at all: it's the
 effective *independent* sample count once overlapping windows are accounted
-for, and for most tickers it shrinks toward zero exactly where the headline
-percentages look most impressive (6-12 months) — PLTR's numbers *decline* at
-longer horizons instead of climbing, a genuine, structurally different
-result, not something smoothed over to make the table look consistent
-across tickers. SP500 is the exception, and deliberately so (see "The 80-90%
-question"): it uses ~99 years of index history instead of the shared 10y
-window, so its independent-sample count stays in the double digits even at
-1 year (~13) — the percentages are lower than they'd be reading only the
-last bull decade, but they're real numbers backed by real bear markets,
-not an artifact of a thin, lucky window.
+for. PLTR's numbers *decline* at longer horizons instead of climbing — a
+genuine, structurally different result, not something smoothed over to make
+the table look consistent across tickers — and no amount of extra history
+fixes that, since PLTR (IPO'd 2020) simply doesn't have more to give.
+AAPL and SP500 both now use their full available history (see "The 80-90%
+question" above) instead of the shared 10-year window, so both keep a real
+double-digit-or-close independent-sample count even out to 1 year (AAPL ~5,
+SP500 ~13) — the percentages read lower than a single bull decade would
+suggest, but they're backed by real bear markets, not an artifact of a
+thin, lucky window.
 This table was requested as an input to "optimize the investment strategy" —
 that specific framing was declined for the same reason as the ticker ranking
 above: it's investment advice regardless of which horizons back it. What's
@@ -998,21 +1011,19 @@ sophisticated:
   entirely to SP500's steadier number.
 
 **Honest result**: recency-weighting *alone*, with no shrinkage, was the
-**worst** of six candidates tested (30.3 pts MAE, worse than even the raw
+**worst** of six candidates tested (30.1 pts MAE, worse than even the raw
 mean) — leaning harder into a ticker's own recent history backfires when
 that recent history was itself an unusual regime (PLTR's blistering
 2024-2026 rally, for one, made its own recency-weighted estimate more
 extreme, not less). Combined with shrinkage toward SP500, though, it won
-decisively: **18.1 points MAE vs. 25.1 for the plain median** — roughly a
-28% reduction — now the default (`LIVE_FORECAST_ESTIMATOR` in
-`long_horizon_drift.py`). Not every horizon improved on every axis: 6-month
-direction-match rate actually dropped slightly (2/8 → 1/8) even as its MAE
-improved, a reminder that "lower average error" and "more often
-directionally right" are different claims, same point the dashboard's own
-expected-vs-actual table already makes. Kept because the aggregate,
-honestly-measured metric (MAE, the one this whole comparison is built
-around) improved substantially and consistently — not cherry-picked because
-one horizon looked better.
+decisively: **19.7 points MAE vs. 22.5 for the plain median** (29.5 for the
+raw mean) — now the default (`LIVE_FORECAST_ESTIMATOR` in
+`long_horizon_drift.py`). Direction-match rate (59.4%) was identical across
+all six candidates in this run — every estimator agreed on sign for every
+(ticker, horizon) pair, so this pass didn't surface the kind of
+MAE-improves/direction-match-drops trade-off seen in earlier passes; kept
+because the aggregate, honestly-measured metric (MAE, the one this whole
+comparison is built around) improved substantially and consistently.
 
 ## Extending this
 

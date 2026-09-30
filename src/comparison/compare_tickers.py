@@ -28,7 +28,7 @@ import yfinance as yf
 from backtest_dates import backtest_ticker
 from config import CLASSIFICATION_THRESHOLD, DATA_DIR, MODELS_DIR, REPORTS_DIR, TEST_FRACTION, TICKERS
 from features import make_dataset
-from fetch_data import fetch_all, fetch_long_horizon_market_history, fetch_macro_all
+from fetch_data import fetch_all, fetch_long_horizon_history, fetch_macro_all
 from long_horizon_drift import analyze_ticker, most_recent_completed_window
 from macro_features import build_macro_features
 from news_features import build_news_history, news_features_for_ticker
@@ -152,7 +152,7 @@ def main():
     print("\nFetching data...")
     data = fetch_all()
     macro_df = build_macro_features(fetch_macro_all())
-    fetch_long_horizon_market_history()  # analyze_ticker/most_recent_completed_window("SP500") need this cached
+    fetch_long_horizon_history()  # analyze_ticker/most_recent_completed_window need each ticker's long-history file cached
 
     any_df = next(iter(data.values()))
     news_daily = build_news_history(any_df.index.min().strftime("%Y-%m"), any_df.index.max().strftime("%Y-%m"))

@@ -16,21 +16,25 @@ from fetch_data import fetch_all
 
 # Hand-picked from long_horizon_drift.py's output: the shortest horizon that
 # reliably (>=20 overlapping test windows) crossed an 80% out-of-sample hit
-# rate for that ticker. PLTR, META, and MSFT have no entry on purpose -- see
-# the module docstring in long_horizon_drift.py: no horizon reliably reached
-# 80% out-of-sample for them, so making a call here would be fabricated confidence.
+# rate for that ticker. PLTR has no entry on purpose -- see the module
+# docstring in long_horizon_drift.py: no horizon reliably reached 80%
+# out-of-sample for it (its 2020 IPO caps how much history it can ever have),
+# so making a call here would be fabricated confidence.
+#
+# Every ticker except PLTR now uses its own full available history (back to
+# its actual listing date, not the shared 10y daily-pipeline window) -- see
+# config.LONG_HORIZON_HISTORY_PERIOD / fetch_data.fetch_long_horizon_history()
+# -- so held-out test regions span real bear markets (2000, 2008, 2020, 2022)
+# instead of one recent bull run, and independent-window counts are honest
+# rather than inflated by a thin, lucky decade.
 LONG_HORIZON_CALLS = {
-    # SP500 uses a much longer history than the other tickers (~99 years vs.
-    # ~10) -- see config.LONG_HORIZON_HISTORY_PERIOD / fetch_data.py's
-    # fetch_long_horizon_market_history() -- so its held-out test region
-    # spans real bear markets (2000, 2008, 2020, 2022) and gives ~28
-    # genuinely independent 6-month windows, not the ~7 independent 2-month
-    # windows the old 10y-only test region allowed.
     "SP500": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.818, "independent_n": 28},
-    "AAPL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.976, "independent_n": 1},
-    "AMZN": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.812, "independent_n": 1},
-    "GOOGL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.984, "independent_n": 1},
-    "NVDA": {"horizon_label": "3 months", "horizon_days": 63, "oos_hit_rate": 0.815, "independent_n": 4},
+    "AAPL": {"horizon_label": "9 months", "horizon_days": 189, "oos_hit_rate": 0.804, "independent_n": 8},
+    "AMZN": {"horizon_label": "9 months", "horizon_days": 189, "oos_hit_rate": 0.821, "independent_n": 4},
+    "GOOGL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.858, "independent_n": 5},
+    "NVDA": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.914, "independent_n": 7},
+    "MSFT": {"horizon_label": "2 years", "horizon_days": 504, "oos_hit_rate": 0.926, "independent_n": 2},
+    "META": {"horizon_label": "2 years", "horizon_days": 504, "oos_hit_rate": 1.0, "independent_n": 0},
 }
 
 

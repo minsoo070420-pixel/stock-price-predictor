@@ -26,18 +26,16 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import DATA_DIR, RECENCY_HALF_LIFE_TRADING_DAYS, REPORTS_DIR, TEST_FRACTION, TICKERS
 
-# SP500 gets its own, much longer price history (see fetch_data.py's
-# fetch_long_horizon_market_history() / config.LONG_HORIZON_HISTORY_PERIOD)
-# so its 6/9/12-month hit rates -- and the market-shrinkage prior every other
-# ticker leans on -- rest on many genuinely independent windows spanning real
-# bear markets, not the ~1 independent window the shared 10y daily-pipeline
-# data allows. Every other ticker keeps using its normal {name}.csv.
-_LONG_HISTORY_FILE = {"SP500": "SP500_long_history.csv"}
-
-
+# Every ticker gets its own, much longer price history here (see
+# fetch_data.fetch_long_horizon_history() / config.LONG_HORIZON_HISTORY_PERIOD)
+# so 6/9/12-month hit rates -- and the market-shrinkage prior every ticker's
+# own estimate leans on -- rest on many genuinely independent windows
+# spanning real bear markets, not the ~1 independent window the shared 10y
+# daily-pipeline data allows. For IPO-limited tickers (PLTR) this file is a
+# harmless near-duplicate of the regular {name}.csv, since 10 years already
+# covers their whole listed history.
 def _load_close(name: str) -> pd.Series:
-    filename = _LONG_HISTORY_FILE.get(name, f"{name}.csv")
-    df = pd.read_csv(DATA_DIR / filename, index_col=0, parse_dates=True)
+    df = pd.read_csv(DATA_DIR / f"{name}_long_history.csv", index_col=0, parse_dates=True)
     return df["Close"]
 
 HORIZONS_TRADING_DAYS = {
@@ -453,8 +451,8 @@ def run_expected_vs_actual(anchor_days_ago: int = 252):
 def main():
     print("Long-horizon drift analysis -- NOT day-to-day forecasting. See module docstring.\n")
 
-    from fetch_data import fetch_long_horizon_market_history
-    fetch_long_horizon_market_history()
+    from fetch_data import fetch_long_horizon_history
+    fetch_long_horizon_history()
 
     all_rows = []
     for name in TICKERS.values():

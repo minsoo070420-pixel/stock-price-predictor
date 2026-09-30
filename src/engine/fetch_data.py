@@ -74,20 +74,27 @@ def fetch_all() -> dict[str, pd.DataFrame]:
     return out
 
 
-def fetch_long_horizon_market_history() -> pd.DataFrame:
-    """SP500 (^GSPC) has decades of freely available index history, unlike
-    IPO-limited single-name tickers -- fetched separately here, at
-    LONG_HORIZON_HISTORY_PERIOD ("max"), purely so long_horizon_drift.py can
-    validate its 6/9/12-month hit rates against many genuinely independent
-    windows (including real bear markets) instead of the ~1 independent
-    window the shared 10y HISTORY_PERIOD allows. Does not affect the daily-
-    prediction pipeline, which keeps using SP500.csv (HISTORY_PERIOD)."""
-    df = _download("^GSPC", LONG_HORIZON_HISTORY_PERIOD, INTERVAL)
-    out_path = DATA_DIR / "SP500_long_history.csv"
-    df = _save_with_outage_guard(df, out_path, "^GSPC (SP500_long_history)")
-    print(f"{'^GSPC':>7} -> SP500_long_history: {len(df):>5} rows  "
-          f"[{df.index.min().date()} .. {df.index.max().date()}]  saved to {out_path.relative_to(DATA_DIR.parent)}")
-    return df
+def fetch_long_horizon_history() -> dict[str, pd.DataFrame]:
+    """Every ticker's full available history (back to its actual listing date
+    where that's longer than 10 years -- SP500 the index back to 1927, AAPL
+    to 1980, MSFT to 1986, etc; PLTR's 2020 IPO means it already gets its max
+    history from the regular 10y fetch, so this is a harmless near-duplicate
+    for it), fetched separately at LONG_HORIZON_HISTORY_PERIOD ("max") purely
+    so long_horizon_drift.py can validate its 6/9/12-month hit rates against
+    many genuinely independent windows (including real bear markets) instead
+    of the ~1 independent window the shared 10y HISTORY_PERIOD allows. Does
+    not affect the daily-prediction pipeline, which keeps using the regular
+    {name}.csv (HISTORY_PERIOD)."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    out = {}
+    for symbol, name in TICKERS.items():
+        df = _download(symbol, LONG_HORIZON_HISTORY_PERIOD, INTERVAL)
+        out_path = DATA_DIR / f"{name}_long_history.csv"
+        df = _save_with_outage_guard(df, out_path, f"{symbol} ({name}_long_history)")
+        print(f"{symbol:>7} -> {name}_long_history: {len(df):>5} rows  "
+              f"[{df.index.min().date()} .. {df.index.max().date()}]  saved to {out_path.relative_to(DATA_DIR.parent)}")
+        out[name] = df
+    return out
 
 
 def fetch_intraday_train_one(symbol: str, name: str) -> pd.DataFrame:
