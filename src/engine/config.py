@@ -116,6 +116,17 @@ INTERVAL = "1d"
 TEST_FRACTION = 0.15     # last 15% of trading days held out as test set, chronologically
 RANDOM_STATE = 42
 
+# long_horizon_drift.py's 6/9/12-month hit rates need many genuinely
+# independent multi-year windows (including real bear markets) to mean
+# anything -- 10y of history gives ~1 independent 12-month test window,
+# which is an anecdote, not a statistic. Unlike single-name tickers (IPO-
+# limited history), SP500 (^GSPC) has decades of index history freely
+# available, so long_horizon_drift.py fetches SP500 separately with this
+# much longer period -- covering multiple real bull AND bear markets
+# (2000, 2008, 2020, 2022) -- instead of the shared 10y HISTORY_PERIOD
+# above, which stays untouched for the daily-prediction pipeline.
+LONG_HORIZON_HISTORY_PERIOD = "max"
+
 # Intraday (same-day close prediction) settings.
 # Yahoo Finance retention limits: 60m bars ~730 days, 5m bars ~60 days.
 # We train on the longer hourly history and feed the model fresh 5-minute

@@ -26,6 +26,20 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import DATA_DIR, RECENCY_HALF_LIFE_TRADING_DAYS, REPORTS_DIR, TEST_FRACTION, TICKERS
 
+# SP500 gets its own, much longer price history (see fetch_data.py's
+# fetch_long_horizon_market_history() / config.LONG_HORIZON_HISTORY_PERIOD)
+# so its 6/9/12-month hit rates -- and the market-shrinkage prior every other
+# ticker leans on -- rest on many genuinely independent windows spanning real
+# bear markets, not the ~1 independent window the shared 10y daily-pipeline
+# data allows. Every other ticker keeps using its normal {name}.csv.
+_LONG_HISTORY_FILE = {"SP500": "SP500_long_history.csv"}
+
+
+def _load_close(name: str) -> pd.Series:
+    filename = _LONG_HISTORY_FILE.get(name, f"{name}.csv")
+    df = pd.read_csv(DATA_DIR / filename, index_col=0, parse_dates=True)
+    return df["Close"]
+
 HORIZONS_TRADING_DAYS = {
     "1 week": 5,
     "2 weeks": 10,
@@ -76,8 +90,7 @@ def individual_window_instances(name: str, horizon_label: str, horizon: int) -> 
     prices, not just the aggregate hit-rate percentage. Non-overlapping (unlike
     the rolling hit_rate() above) so each row is a genuinely independent
     instance, not 251 copies of the same window shifted by a day."""
-    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
-    close = df["Close"]
+    close = _load_close(name)
     n = len(close)
     split = int(n * (1 - TEST_FRACTION))
     test_close = close.iloc[split:]
@@ -106,8 +119,7 @@ def most_recent_completed_window(name: str, horizon_label: str, horizon: int) ->
     point is the most recent real instance, not an in-sample/out-of-sample
     split. One instance, not a statistic -- read it as an anecdote, not
     evidence of a rate."""
-    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
-    close = df["Close"].dropna()  # defends against a stale CSV with a not-yet-settled trailing row
+    close = _load_close(name).dropna()  # defends against a stale CSV with a not-yet-settled trailing row
     if len(close) <= horizon:
         return {"ticker": name, "horizon": horizon_label, "note": "not enough history"}
     start_date, end_date = close.index[-horizon - 1], close.index[-1]
@@ -122,8 +134,7 @@ def most_recent_completed_window(name: str, horizon_label: str, horizon: int) ->
 
 
 def analyze_ticker(name: str) -> pd.DataFrame:
-    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
-    close = df["Close"]
+    close = _load_close(name)
     n = len(close)
     split = int(n * (1 - TEST_FRACTION))
     train_close, test_close = close.iloc[:split], close.iloc[split:]
@@ -248,8 +259,7 @@ def expected_vs_actual_return(name: str, anchor_days_ago: int = 252,
     only loaded once) enables the recency_weighted_median_shrunk candidate --
     for SP500 itself, pass its own close series so shrinkage is a harmless
     no-op (shrinking toward itself)."""
-    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
-    close = df["Close"]
+    close = _load_close(name)
     n = len(close)
     anchor_idx = n - 1 - anchor_days_ago
     if anchor_idx < 60:
@@ -316,8 +326,7 @@ def live_horizon_forecast(name: str, market_close: pd.Series | None = None) -> p
     `market_close` (SP500's own Close series) enables the
     recency_weighted_median_shrunk candidate the same way as
     expected_vs_actual_return; for SP500 itself pass its own close series."""
-    df = pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)
-    close = df["Close"]
+    close = _load_close(name)
     last_date = close.index[-1]
     last_price = float(close.iloc[-1])
 
@@ -354,7 +363,7 @@ def live_horizon_forecast(name: str, market_close: pd.Series | None = None) -> p
 
 
 def run_live_horizon_forecast() -> pd.DataFrame:
-    market_close = pd.read_csv(DATA_DIR / "SP500.csv", index_col=0, parse_dates=True)["Close"]
+    market_close = _load_close("SP500")
     all_rows = [live_horizon_forecast(name, market_close=market_close) for name in TICKERS.values()]
     result = pd.concat(all_rows, ignore_index=True)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -397,7 +406,7 @@ def run_expected_vs_actual(anchor_days_ago: int = 252):
     than assuming the raw mean is the right one to report."""
     print(f"\n{'='*90}\nExpected vs. actual return at 3/6/9/12 months, using ONLY data available "
           f"~{anchor_days_ago} trading days ago (no lookahead)\n{'='*90}")
-    market_close = pd.read_csv(DATA_DIR / "SP500.csv", index_col=0, parse_dates=True)["Close"]
+    market_close = _load_close("SP500")
     all_rows = []
     for name in TICKERS.values():
         r = expected_vs_actual_return(name, anchor_days_ago, market_close=market_close)
@@ -443,6 +452,9 @@ def run_expected_vs_actual(anchor_days_ago: int = 252):
 
 def main():
     print("Long-horizon drift analysis -- NOT day-to-day forecasting. See module docstring.\n")
+
+    from fetch_data import fetch_long_horizon_market_history
+    fetch_long_horizon_market_history()
 
     all_rows = []
     for name in TICKERS.values():

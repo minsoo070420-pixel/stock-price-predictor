@@ -587,7 +587,7 @@ has the full horizon-by-horizon table):
 
 | Ticker | Shortest horizon crossing 80% OOS | OOS hit rate | Independent samples |
 |---|---|---|---|
-| SP500 | 2 months (42 trading days) | 86.6% | ~7 |
+| SP500 | 6 months (126 trading days) | 81.8% | **~28** |
 | AAPL | 6 months (126 trading days) | 97.6% | **~1** |
 | PLTR | *none* | — | — |
 
@@ -597,8 +597,22 @@ Read this carefully, not just the headline numbers:
   window share 125 of 126 days — they are not independent evidence. AAPL's
   "251 test windows" is really **about one independent 6-month period**. That
   97.6% is closer to "AAPL happened to keep going up during the one stretch
-  we have" than a validated statistic. SP500's 86.6% (~7 independent windows)
-  is on firmer ground but still thin by any normal statistical standard.
+  we have" than a validated statistic.
+- **SP500 is the one case where this is actually on solid ground, and it
+  earned that by using far more history than everything else in this
+  project.** Every other ticker (and SP500's own daily-prediction models)
+  uses the shared 10-year `HISTORY_PERIOD` — enough for a handful of
+  independent windows at best, one at worst. SP500 the *index* (`^GSPC`) has
+  freely available data back to 1927, so `long_horizon_drift.py` fetches it
+  separately at `LONG_HORIZON_HISTORY_PERIOD = "max"`
+  (`fetch_data.fetch_long_horizon_market_history()`) — giving a held-out test
+  region spanning ~1970-2026, with **~28 genuinely independent 6-month
+  windows** covering multiple real bear markets (2000 dot-com, 2008 GFC, 2020
+  COVID crash, 2022). 81.8% surviving that many independent cycles, several
+  of them real crashes, is a materially stronger claim than a single-decade
+  number could ever be — even though it's *lower* than the old 10-year-only
+  number (86.6% at 2 months, ~7 independent windows) once bear-market data is
+  actually included instead of a mostly-bull decade.
 - **PLTR breaks the whole premise.** At longer horizons its out-of-sample hit
   rate actually *drops* to 27-33% — the held-out test period was a genuine
   down-trending stretch for PLTR, so "always bet UP" would have been wrong
@@ -606,15 +620,20 @@ Read this carefully, not just the headline numbers:
   PLTR rather than force an 80% claim that the data doesn't support — a
   script that found a way to claim 80%+ for all three tickers regardless of
   what actually happened would be fitting the conclusion, not reporting it.
-- **This only "works" as long as the drift continues.** Every one of these
-  numbers is a statement about the past, extrapolated forward on the
-  assumption the trend holds. When it doesn't — as it apparently didn't for
-  PLTR in this exact test window — the approach fails, and it fails in
-  exactly the direction that matters (calling UP right before a decline).
+- **This only "works" as long as the drift continues** — for most tickers
+  here, that's still an untested assumption, since their ~1-independent-
+  window evidence has never actually seen the drift fail. SP500 is the
+  exception: its ~28-independent-window test region *did* include real drift
+  failures (2000, 2008, 2020, 2022 all sit inside it), and 81.8% is the rate
+  that survived those, not a number computed only from a period where
+  betting UP never got tested against a real downturn.
 
-Net: 80-90% is achievable *as a number*, but only by predicting something
-much less useful than "will the stock go up tomorrow," and even that weaker
-claim's evidence is thinner than the headline percentage suggests.
+Net: 80-90% is achievable *as a number* for most tickers here, but only by
+predicting something much less useful than "will the stock go up tomorrow,"
+and that weaker claim's evidence is thin — usually ~1 independent window.
+SP500 is the one case backed by enough genuinely independent history
+(~28 windows, several real bear markets) to trust the number as a real,
+if still weak-question, statistic rather than an anecdote.
 
 ## Expected vs. actual return: using a year-old snapshot, checked against reality
 
@@ -803,7 +822,7 @@ actually matter, all pulled from Part 1's own outputs — it trains nothing new.
 
 ```
                        held_out_test_rmse   held_out_test_balanced_accuracy   recent_accuracy   recent_net_bps_per_trade   long_horizon_call
-SP500                  0.0104                0.5209                          0.4333            +8.1                       UP over 2 months (86.6% OOS)
+SP500                  0.0104                0.5209                          0.4333            +8.1                       UP over 6 months (81.8% OOS)
 AAPL                   0.0193                0.5110                          0.5000            -23.8                      UP over 6 months (97.6% OOS, ~1 sample)
 PLTR                   0.0394                0.5806                          0.5333            +29.9                      none reliable
 ```
@@ -830,15 +849,21 @@ own walk-forward analysis rather than computing anything new:
 horizon              1 month            3 months            6 months               1 year
 AAPL     63.8%  [~16 indep.]  79.0%  [~4 indep.]  97.6%  [~1 indep.]  100.0%  [~0 indep.]
 PLTR      39.7%  [~9 indep.]  27.2%  [~2 indep.]  29.3%  [~0 indep.]                  n/a
-SP500    74.2%  [~16 indep.]  90.4%  [~4 indep.]  95.2%  [~1 indep.]  100.0%  [~0 indep.]
+SP500   67.9% [~176 indep.]  76.4% [~58 indep.]  81.8% [~28 indep.]  85.5% [~13 indep.]
 ```
 
 The `[~N indep.]` figure is the point of showing this at all: it's the
 effective *independent* sample count once overlapping windows are accounted
-for, and it shrinks toward zero exactly where the headline percentages look
-most impressive (6-12 months). PLTR's numbers *decline* at longer horizons
-instead of climbing — a genuine, structurally different result, not
-something smoothed over to make the table look consistent across tickers.
+for, and for most tickers it shrinks toward zero exactly where the headline
+percentages look most impressive (6-12 months) — PLTR's numbers *decline* at
+longer horizons instead of climbing, a genuine, structurally different
+result, not something smoothed over to make the table look consistent
+across tickers. SP500 is the exception, and deliberately so (see "The 80-90%
+question"): it uses ~99 years of index history instead of the shared 10y
+window, so its independent-sample count stays in the double digits even at
+1 year (~13) — the percentages are lower than they'd be reading only the
+last bull decade, but they're real numbers backed by real bear markets,
+not an artifact of a thin, lucky window.
 This table was requested as an input to "optimize the investment strategy" —
 that specific framing was declined for the same reason as the ticker ranking
 above: it's investment advice regardless of which horizons back it. What's

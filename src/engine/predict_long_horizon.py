@@ -20,7 +20,13 @@ from fetch_data import fetch_all
 # the module docstring in long_horizon_drift.py: no horizon reliably reached
 # 80% out-of-sample for them, so making a call here would be fabricated confidence.
 LONG_HORIZON_CALLS = {
-    "SP500": {"horizon_label": "2 months", "horizon_days": 42, "oos_hit_rate": 0.866, "independent_n": 7},
+    # SP500 uses a much longer history than the other tickers (~99 years vs.
+    # ~10) -- see config.LONG_HORIZON_HISTORY_PERIOD / fetch_data.py's
+    # fetch_long_horizon_market_history() -- so its held-out test region
+    # spans real bear markets (2000, 2008, 2020, 2022) and gives ~28
+    # genuinely independent 6-month windows, not the ~7 independent 2-month
+    # windows the old 10y-only test region allowed.
+    "SP500": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.818, "independent_n": 28},
     "AAPL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.976, "independent_n": 1},
     "AMZN": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.812, "independent_n": 1},
     "GOOGL": {"horizon_label": "6 months", "horizon_days": 126, "oos_hit_rate": 0.984, "independent_n": 1},
